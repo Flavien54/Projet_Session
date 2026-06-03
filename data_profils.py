@@ -76,7 +76,7 @@ class DatasetBuilder:
                     })
         return profiles
         
-    def _uiuc_profiles(self) -> list[dict]:
+    def _uiuc_profiles(self):
         """
         Retourne la liste des profils UIUC disponibles dans AeroSandbox,
         filtrés par famille, hors profils NACA.
@@ -101,5 +101,24 @@ class DatasetBuilder:
                     })
                     break
         return selected
+        
+    def _all_profiles(self):
+        """Fusionne NACA + UIUC et applique la limite max_profils."""
+        naca = self._naca_profiles()
+        uiuc = self._uiuc_profiles()
+        all_p = naca + uiuc
 
+        if self.max_profils:
+            all_p = all_p[: self.max_profils]
+
+        print(f"\n  Profils NACA  : {len(naca)}")
+        print(f"  Profils UIUC  : {len(uiuc)}")
+        print(f"  Total          : {len(all_p)}"
+              + (f"  (limité à {self.max_profils})" if self.max_profils else ""))
+        sims = len(all_p) * len(self.ALPHA_RANGE) * len(self.RE_RANGE)
+        print(f"  Combinaisons   : ~{sims:,}  "
+              f"({len(self.ALPHA_RANGE)} α × {len(self.RE_RANGE)} Re)")
+        return all_p
+
+    
     
