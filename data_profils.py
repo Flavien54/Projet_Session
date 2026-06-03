@@ -74,5 +74,31 @@ class DatasetBuilder:
                         "camber" : None,       # calculé analytiquement via m
                         "source" : "naca_grid",
                     })
+                    
+    def _uiuc_profiles(self) -> list[dict]:
+        """
+        Retourne la liste des profils UIUC disponibles dans AeroSandbox,
+        filtrés par famille, hors profils NACA.
+        """
+        pkg_path  = pathlib.Path(asb.__file__).parent
+        dat_files = pkg_path.rglob("*.dat")
+        all_names = [f.stem for f in dat_files]
+
+        selected = []
+        for name in sorted(set(all_names)):
+            if name.startswith("naca"):
+                continue                    # déjà couverts par la grille NACA
+            for famille in self.UIUC_FAMILIES:
+                if name.startswith(famille):
+                    selected.append({
+                        "name"   : name,
+                        "m"      : None,    # pas de paramètre NACA
+                        "p"      : None,
+                        "t"      : None,    # calculé via max_thickness()
+                        "camber" : None,    # calculé via max_camber()
+                        "source" : "uiuc",
+                    })
+                    break
+        return selected
 
         return profiles
