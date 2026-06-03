@@ -120,5 +120,55 @@ class DatasetBuilder:
               f"({len(self.ALPHA_RANGE)} α × {len(self.RE_RANGE)} Re)")
         return all_p
 
-    
+     def _generate_combinations(self, data):
+        """
+        Génère toutes les combinaisons (alpha, Re) pour un profil.
+
+        Pour les profils UIUC :
+            - m = None
+            - p = None
+            - t = None
+            - camber calculé par AeroSandbox
+
+        Retourne un DataFrame avec les paramètres géométriques et conditions.
+        """
+        name = data["name"]
+
+        try:
+
+            if data["source"] == "uiuc":
+                af = asb.Airfoil(name)
+
+                m_val = "None"
+                p_val = "None"
+                t_val = "None"
+
+                camber_val = round(float(af.max_camber()), 6)
+
+            else:
+                m_val = data["m"]
+                p_val = data["p"]
+                t_val = data["t"]
+                camber_val = data["camber"] if data["camber"] is not None else 0.0
+
+            rows = []
+
+            for re in self.RE_RANGE:
+                for alpha in self.ALPHA_RANGE:
+                    rows.append({
+                        "naca": name,
+                        "m": m_val,
+                        "p": p_val,
+                        "t": t_val,
+                        "camber": camber_val,
+                        "alpha": float(alpha),
+                        "Re": float(re),
+                        "source": data["source"],
+                    })
+
+            return pd.DataFrame(rows)
+
+        except Exception as exc:
+            print(f"    ✗  {name} : {exc}")
+            return None    
     
