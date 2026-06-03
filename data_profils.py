@@ -169,6 +169,6 @@ class DatasetBuilder:
             return pd.DataFrame(rows)
 
         except Exception as exc:
-            print(f"    ✗  {name} : {exc}")
+            print(f"      {name} : {exc}")
             return None    
     
