@@ -74,7 +74,8 @@ class DatasetBuilder:
                         "camber" : None,       # calculé analytiquement via m
                         "source" : "naca_grid",
                     })
-                    
+        return profiles
+        
     def _uiuc_profiles(self) -> list[dict]:
         """
         Retourne la liste des profils UIUC disponibles dans AeroSandbox,
@@ -101,4 +102,4 @@ class DatasetBuilder:
                     break
         return selected
 
-        return profiles
+    
