@@ -1,17 +1,3 @@
-"""
-DatasetBuilder — Construction complète du dataset AeroPredict
-MGA 802 · AeroPredict
-
-Un seul script qui :
-  1. Génère la grille paramétrique NACA 4 chiffres
-  2. Charge les profils UIUC embarqués dans AeroSandbox
-  3. Sauvegarde progressivement dans un seul dataset.csv
-
-Usage :
-    python dataset_builder.py             # dataset complet
-    python dataset_builder.py --test      # 10 profils, test rapide
-"""
-
 import aerosandbox as asb
 import numpy as np
 import pandas as pd
@@ -62,3 +48,31 @@ class DatasetBuilder:
     ):
         self.output_path = output_path
         self.max_profils = max_profils
+      
+    def _naca_profiles(self):
+        """
+        Retourne la liste des profils NACA 4 chiffres avec leurs
+        paramètres m, p, t.
+        Les profils m=0 sont symétriques quelle que soit p → afin de pas générer de bruit, aucune modèle symétrique est utilisé.
+        """
+        profiles = []
+
+        for m in self.M_RANGE:
+            for p in self.P_RANGE:
+
+                # Profil symétrique (m=0) : p n'a aucun effet géométrique
+                # → on ne garde qu'une seule valeur de p pour éviter les doublons
+                if m == 0 and p != self.P_RANGE[0]:
+                    continue
+
+                for t in self.T_RANGE:
+                    profiles.append({
+                        "name"   : f"naca{m}{p}{t:02d}",
+                        "m"      : m / 100,
+                        "p"      : p / 10,
+                        "t"      : t / 100,
+                        "camber" : None,       # calculé analytiquement via m
+                        "source" : "naca_grid",
+                    })
+
+        return profiles
