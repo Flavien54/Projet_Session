@@ -58,9 +58,7 @@ class DatasetBuilder:
     def __init__(
         self,
         output_path : str   = "dataset.csv",
-        model_size  : str   = None,
         max_profils : int   = None,     # None = tous, entier = limite test
     ):
         self.output_path = output_path
-        self.model_size  = model_size or self.MODEL_SIZE
         self.max_profils = max_profils
