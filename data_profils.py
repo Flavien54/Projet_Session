@@ -28,7 +28,7 @@ class DatasetBuilder:
     ------------------------
     ALPHA_RANGE : angles d'attaque en degrés
     RE_RANGE    : nombres de Reynolds
-    MODEL_SIZE  : précision NeuralFoil ('small','medium','large','xlarge')
+    
 
     Grille NACA
     -----------
@@ -45,7 +45,7 @@ class DatasetBuilder:
     # ── Paramètres de simulation ────────────────────────────────────
     ALPHA_RANGE = np.arange(-6, 24, 0.5, dtype=float)
     RE_RANGE    = [5e4, 1e5, 5e5, 1e6, 5e6]
-    MODEL_SIZE  = "large"
+    
 
     # ── Grille NACA ─────────────────────────────────────────────────
     M_RANGE = [0, 1, 2, 3, 4, 5, 6]
