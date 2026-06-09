@@ -231,3 +231,164 @@ def compute_profile_re(args):
             "error":   str(exc),
             "rows":    [],
         }
+# ═══════════════════════════════════════
+# BUILDER
+# ═══════════════════════════════════════
+
+class XFoilDatasetBuilder:
+
+    def __init__(self, input_csv, output_csv, max_cores=8):
+        self.input_csv  = input_csv
+        self.output_csv = output_csv
+        self.max_cores  = max_cores
+
+    @staticmethod
+    def _flush_rows(rows, output_csv, first_write_flag,
+                    global_row_counter, t0, n_total_for_eta,
+                    profil, re_val):
+        for row in rows:
+            pd.DataFrame([row]).to_csv(
+                output_csv,
+                mode   = "a",
+                header = first_write_flag[0],
+                index  = False,
+            )
+            first_write_flag[0] = False
+
+            global_row_counter[0] += 1
+            i_row = global_row_counter[0]
+
+            elapsed = time.time() - t0
+            eta_s   = (elapsed / i_row) * (n_total_for_eta - i_row) if i_row > 0 else 0
+
+            conv_tag = "OK " if row["converged"] else "itp"
+            print(
+                f"  [{i_row:7d}/{n_total_for_eta}]  "
+                f"{profil:22s}  "
+                f"Re={re_val:.2e}  "
+                f"α={row['alpha']:+6.2f}°  "
+                f"[{conv_tag}]  "
+                f"CL={row['CL']:+7.4f}  "
+                f"CD={row['CD']:8.5f}  "
+                f"CM={row['CM']:+7.4f}  "
+                f"L/D={row['LD']:+8.2f}  "
+                f"ETA {eta_s/60:6.1f} min"
+            )
+
+    def build(self):
+
+        df      = pd.read_csv(self.input_csv)
+        alphas  = np.sort(df["alpha"].unique())
+        re_vals = np.sort(df["Re"].unique())
+
+        geom_cols = ["naca", "source", "t", "camber", "x_t", "x_c",
+                     "LE_radius", "TE_angle", "t_over_xt", "area"]
+        geom_df = (df[geom_cols]
+                   .drop_duplicates(subset=["naca"])
+                   .set_index("naca"))
+        profils = geom_df.index.tolist()
+
+        # ── Reprise après interruption ───────────────────────────────
+        done_keys   = set()
+        first_write = [True]
+
+        try:
+            df_done = pd.read_csv(self.output_csv, usecols=["naca", "Re"])
+            for _, r in df_done.iterrows():
+                done_keys.add((r["naca"], float(r["Re"])))
+            first_write[0] = False
+            print(f"\n  Reprise : {len(done_keys)} paires (profil×Re) déjà calculées")
+        except FileNotFoundError:
+            print(f"\n  Nouveau fichier : {self.output_csv}")
+
+        try:
+            n_already = sum(1 for _ in open(self.output_csv)) - 1
+        except FileNotFoundError:
+            n_already = 0
+
+        tasks = []
+        for profil in profils:
+            for re_val in re_vals:
+                if (profil, float(re_val)) in done_keys:
+                    continue
+                tasks.append((
+                    profil,
+                    float(re_val),
+                    alphas,
+                    geom_df.loc[profil].to_dict(),
+                ))
+
+        n_tasks         = len(tasks)
+        n_total_rows    = n_tasks * len(alphas)
+        n_all_rows      = len(profils) * len(re_vals) * len(alphas)
+        n_total_for_eta = n_already + n_total_rows
+
+        cores_dispo = multiprocessing.cpu_count()
+        n_proc      = min(self.max_cores, max(1, cores_dispo // 2))
+
+        print("\n══════════════════════════════════════════════════════════════════")
+        print("  XFOIL DATASET BUILDER — BATCH + cascade de convergence")
+        print("══════════════════════════════════════════════════════════════════")
+        print(f"  Profils uniques  : {len(profils)}")
+        print(f"  Re values        : {len(re_vals)}  {[f'{r:.0e}' for r in re_vals]}")
+        print(f"  Alpha points     : {len(alphas)}  ({alphas[0]}° → {alphas[-1]}°)")
+        print(f"  Tâches totales   : {len(profils)*len(re_vals)}  ({n_tasks} restantes)")
+        print(f"  CPU disponibles  : {cores_dispo}   utilisés : {n_proc}")
+        print(f"  Lignes attendues : ~{n_all_rows:,}  ({n_total_rows:,} restantes)")
+        print(f"  Timeouts         : {TIMEOUT_MAP}")
+        print(f"  Stratégie        : batch séquencé → segments → point/point → extrapolation")
+        print("══════════════════════════════════════════════════════════════════\n")
+
+        if n_tasks == 0:
+            print("  Dataset déjà complet — rien à calculer.")
+            return
+
+        global_row_counter = [n_already]
+        n_ok  = len(done_keys)
+        n_err = 0
+        t0    = time.time()
+
+        with multiprocessing.Pool(processes=n_proc) as pool:
+            for i_task, res in enumerate(
+                    pool.imap_unordered(compute_profile_re, tasks), 1):
+
+                if not res["success"]:
+                    n_err += 1
+                    print(f"\n  [FAIL]  {res['profil']:22s}  Re={res['Re']:.2e}"
+                          f"  → {res.get('error', '?')}\n")
+                    continue
+
+                conv_pct = 100 * res["n_conv"] / res["n_total"]
+                print(
+                    f"\n  ┌─ {res['profil']}  Re={res['Re']:.2e}"
+                    f"  convergé={res['n_conv']}/{res['n_total']} ({conv_pct:.0f}%)"
+                    f"  [{i_task}/{n_tasks} tâches]"
+                )
+
+                self._flush_rows(
+                    rows               = res["rows"],
+                    output_csv         = self.output_csv,
+                    first_write_flag   = first_write,
+                    global_row_counter = global_row_counter,
+                    t0                 = t0,
+                    n_total_for_eta    = n_total_for_eta,
+                    profil             = res["profil"],
+                    re_val             = res["Re"],
+                )
+                n_ok += 1
+
+        total_elapsed = time.time() - t0
+        try:
+            n_lines = sum(1 for _ in open(self.output_csv)) - 1
+        except Exception:
+            n_lines = "?"
+
+        print("\n══════════════════════════════════════════════════════════════════")
+        print("  FIN DU CALCUL")
+        print("══════════════════════════════════════════════════════════════════")
+        print(f"  Tâches réussies  : {n_ok}")
+        print(f"  Tâches échouées  : {n_err}")
+        print(f"  Lignes écrites   : {n_lines:,}" if isinstance(n_lines, int)
+              else f"  Lignes écrites   : {n_lines}")
+        print(f"  Temps total      : {total_elapsed/60:.1f} min")
+        print("══════════════════════════════════════════════════════════════════")
