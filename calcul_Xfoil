@@ -132,3 +132,102 @@ def _extrapolate(alphas, alpha_map):
 
             result[key] = (cl, cd, cm)
     return result
+
+# ═══════════════════════════════════════════════════════════════════
+# WORKER — 1 tâche = 1 profil × 1 Re
+# ═══════════════════════════════════════════════════════════════════
+
+def compute_profile_re(args):
+    profil_name, re_val, alphas, geom_row = args
+    alpha_map = {}
+
+    timeout  = TIMEOUT_MAP.get(re_val, TIMEOUT_DEFAULT)
+    max_iter = ITER_MAP.get(re_val, ITER_DEFAULT)
+
+    try:
+        airfoil = asb.Airfoil(profil_name)
+
+        # ── Niveau 0 : batch complet séquencé ───────────────────────
+        try:
+            alpha_map.update(_sanitize_map(
+                _run_xfoil(airfoil, re_val, alphas, max_iter, timeout)
+            ))
+        except Exception:
+            pass
+
+        # ── Niveau 1 : segments de 10 sur les manquants ──────────────
+        missing = [a for a in alphas if round(float(a), 2) not in alpha_map]
+        if missing:
+            seg_iter    = max(30, max_iter // 2)
+            seg_timeout = max(10, timeout  // 2)
+            for i in range(0, len(missing), 10):
+                seg = np.array(missing[i:i+10])
+                try:
+                    alpha_map.update(_sanitize_map(
+                        _run_xfoil(airfoil, re_val, seg, seg_iter, seg_timeout)
+                    ))
+                except Exception:
+                    pass
+
+        # ── Niveau 2 : point par point sur ce qui reste ──────────────
+        missing = [a for a in alphas if round(float(a), 2) not in alpha_map]
+        if missing:
+            pt_iter    = max(20, max_iter // 3)
+            pt_timeout = max(8, timeout  // 4)
+            for a in missing:
+                try:
+                    alpha_map.update(_sanitize_map(
+                        _run_xfoil(airfoil, re_val, np.array([a]),
+                                   pt_iter, pt_timeout)
+                    ))
+                except Exception:
+                    pass
+
+        # ── Niveau 3 : extrapolation (garantit aucun NaN) ────────────
+        final_map = _extrapolate(alphas, alpha_map)
+        n_conv    = len(alpha_map)
+
+        rows = []
+        for alpha in alphas:
+            key = round(float(alpha), 2)
+            cl, cd, cm = final_map[key]
+            ld = (cl / cd) if abs(cd) > 1e-10 else 0.0
+            ld = float(np.clip(ld, -LD_MAX, LD_MAX))
+            rows.append({
+                "naca":      profil_name,
+                "source":    geom_row["source"],
+                "t":         geom_row["t"],
+                "camber":    geom_row["camber"],
+                "x_t":       geom_row["x_t"],
+                "x_c":       geom_row["x_c"],
+                "LE_radius": geom_row["LE_radius"],
+                "TE_angle":  geom_row["TE_angle"],
+                "t_over_xt": geom_row["t_over_xt"],
+                "area":      geom_row["area"],
+                "alpha":     key,
+                "Re":        float(re_val),
+                "CL":        round(cl, 6),
+                "CD":        round(cd, 6),
+                "CM":        round(cm, 6),
+                "LD":        round(ld, 4),
+                "converged": key in alpha_map,
+            })
+
+        return {
+            "success": True,
+            "profil":  profil_name,
+            "Re":      re_val,
+            "n_conv":  n_conv,
+            "n_total": len(alphas),
+            "rows":    rows,
+        }
+
+    except Exception as exc:
+        return {
+            "success": False,
+            "profil":  profil_name,
+            "Re":      re_val,
+            "n_conv":  0,
+            "error":   str(exc),
+            "rows":    [],
+        }
