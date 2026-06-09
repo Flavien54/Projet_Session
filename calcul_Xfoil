@@ -392,3 +392,17 @@ class XFoilDatasetBuilder:
               else f"  Lignes écrites   : {n_lines}")
         print(f"  Temps total      : {total_elapsed/60:.1f} min")
         print("══════════════════════════════════════════════════════════════════")
+
+# ═══════════════════════════════════════
+# ENTRY POINT
+# ═══════════════════════════════════════
+
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+
+    builder = XFoilDatasetBuilder(
+        input_csv  = INPUT_DATASET,
+        output_csv = OUTPUT_DATASET,
+        max_cores  = 8,
+    )
+    builder.build()
