@@ -1,6 +1,6 @@
 """DatasetBuilder — Construction complète du dataset AeroPredict.
 
-MGA 802 · AeroPredict
+
 
 Un seul script qui :
   1. Génère la grille paramétrique NACA 4 chiffres
