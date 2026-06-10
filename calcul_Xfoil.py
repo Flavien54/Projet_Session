@@ -25,10 +25,10 @@ import pandas as pd
 # ═══════════════════════════════════════
 
 #: Chemin vers le fichier CSV contenant les caractéristiques géométriques de base
-INPUT_DATASET: str = "dataset.csv"
+INPUT_DATASET: str = "dataset_profil.csv"
 
 #: Chemin vers le fichier CSV de sortie enrichi par XFoil
-OUTPUT_DATASET: str = "dataset_xfoil.csv"
+OUTPUT_DATASET: str = "dataset_aeroXfoil.csv"
 
 #: Chemin absolu vers l'exécutable XFoil sur le système
 XFOIL_PATH: str = r"C:\Xfoil\xfoil.exe"
