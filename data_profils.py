@@ -58,7 +58,7 @@ class DatasetBuilder:
     #: Préfixes des familles de profils UIUC sélectionnés
     UIUC_FAMILIES: List[str] = ["e", "fx", "s", "ag", "mh", "hq", "sd", "clarky", "goe"]
 
-    def __init__(self, output_path: str = "dataset.csv", max_profils: Optional[int] = None) -> None:
+    def __init__(self, output_path: str = "dataset_profil.csv", max_profils: Optional[int] = None) -> None:
         """Initialise le constructeur de dataset.
 
         Args:
@@ -349,7 +349,7 @@ class DatasetBuilder:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construit le dataset AeroPredict")
     parser.add_argument("--test", action="store_true", help="Mode test : limite à 10 profils")
-    parser.add_argument("--output", default="dataset.csv", help="Fichier de sortie CSV")
+    parser.add_argument("--output", default="dataset_profil.csv", help="Fichier de sortie CSV")
     args = parser.parse_args()
 
     builder = DatasetBuilder(
