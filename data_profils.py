@@ -54,7 +54,7 @@ class DatasetBuilder:
     Familles UIUC retenues
     ----------------------
     Eppler (e), Wortmann FX (fx), NREL S (s), AG (ag),
-    MH (mh), HQ (hq), Selig-Donovan (sd), Clark Y, Göttingen (goe)
+    MH (mh), HQ (hq), Selig-Donovan (sd), Clark Y, Göttingen (goe).
     """
 
     # ── Plages de conditions de vol ─────────────────────────────────
