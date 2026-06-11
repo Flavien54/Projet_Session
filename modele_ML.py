@@ -116,3 +116,49 @@ class NACAAeroPreprocessor:
             Valeurs cibles dans l'échelle d'origine.
         """
         return self.target_scalers[col].inverse_transform(y_scaled)
+        def _encode_features(self, df: pd.DataFrame, fit: bool) -> np.ndarray:
+        """
+        Encode les caractéristiques catégorielles et continues.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame contenant les données.
+        fit : bool
+            Si True, ajuste les encodeurs, sinon utilise les encodeurs existants.
+
+        Returns
+        -------
+        np.ndarray
+            Matrice des caractéristiques encodées.
+        """
+        encoded_parts = []
+
+        # Encodage des variables catégorielles
+        for col in self.CATEGORICAL_COLS:
+            if fit:
+                enc = self.label_encoders[col].fit_transform(df[col].astype(str)).reshape(-1, 1)
+            else:
+                known = set(self.label_encoders[col].classes_)
+                safe = df[col].astype(str).map(lambda x: x if x in known else self.label_encoders[col].classes_[0])
+                enc = self.label_encoders[col].transform(safe).reshape(-1, 1)
+            encoded_parts.append(enc.astype(np.float32))
+
+        # Normalisation des variables continues
+        cont = df[self.CONTINUOUS_COLS].values.astype(np.float32)
+        cont_scaled = self.feature_scaler.fit_transform(cont) if fit else self.feature_scaler.transform(cont)
+        encoded_parts.append(cont_scaled)
+
+        return np.hstack(encoded_parts).astype(np.float32)
+
+    @property
+    def input_dim(self) -> int:
+        """
+        Retourne la dimension de l'espace d'entrée.
+
+        Returns
+        -------
+        int
+            Nombre total de caractéristiques après encodage.
+        """
+        return len(self.CATEGORICAL_COLS) + len(self.CONTINUOUS_COLS)
