@@ -272,3 +272,89 @@ class NACAMultiTaskModel:
             metrics={"CL": "mae", "CD": "mae", "CM": "mae"}
         )
         return model
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. PIPELINE PRINCIPAL D'ENTRAÎNEMENT
+# ─────────────────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    """
+    Pipeline principal d'entraînement du modèle multi-tâches.
+
+    Ce script charge les données, prétraite les caractéristiques,
+    entraîne le modèle avec des callbacks d'early stopping et de réduction
+    du taux d'apprentissage, puis sauvegarde les artefacts.
+    """
+
+    # Configuration des chemins de fichiers
+    csv_file_path = "dataset_aeroXfoil.csv"
+
+    # Vérification de l'existence du fichier de données
+    if not os.path.exists(csv_file_path):
+        raise FileNotFoundError(f"Le fichier '{csv_file_path}' est introuvable.")
+
+    print(f"Chargement de la base de données entière : {csv_file_path}")
+    df_raw = pd.read_csv(csv_file_path)
+
+    # Séparation des ensembles d'entraînement et de test (85% / 15%)
+    df_train, df_test = train_test_split(df_raw, test_size=0.15, random_state=42)
+
+    # Initialisation et application du préprocesseur
+    preprocessor = NACAAeroPreprocessor()
+    X_train_scaled, y_train_dict = preprocessor.fit_transform(df_train)
+
+    # Séparation entraînement/validation pour l'early stopping
+    idx_t, idx_v = train_test_split(np.arange(len(X_train_scaled)), test_size=0.15, random_state=42)
+    X_t, X_v = X_train_scaled[idx_t], X_train_scaled[idx_v]
+    y_t = {k: v[idx_t] for k, v in y_train_dict.items()}
+    y_v = {k: v[idx_v] for k, v in y_train_dict.items()}
+
+    # Création du modèle multi-tâches
+    mt_model = NACAMultiTaskModel(input_dim=preprocessor.input_dim, learning_rate=5e-4)
+
+    # Configuration des callbacks pour l'entraînement
+    cbs = [
+        callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=15,  # Patience augmentée pour laisser converger
+            restore_best_weights=True,
+            verbose=1
+        ),
+        callbacks.ReduceLROnPlateau(
+            monitor="val_loss",
+            factor=0.5,  # Réduction de moitié du taux d'apprentissage
+            patience=6,  # Patience avant réduction
+            min_lr=1e-6,  # Taux d'apprentissage minimum
+            verbose=1
+        )
+    ]
+
+    # Lancement de l'entraînement
+    print("\n[ML] Lancement de l'apprentissage à haute capacité...")
+    mt_model.model.fit(
+        X_t, y_t,
+        validation_data=(X_v, y_v),
+        epochs=120,  # Nombre maximal d'époques
+        batch_size=512,  # Taille de lot pour stabilité
+        callbacks=cbs,
+        verbose=1
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 4. EXPORTATION DES ARTIFACTS
+    # ─────────────────────────────────────────────────────────────────────────
+    print("\n[EXPORT] Sauvegarde des modèles et configurations...")
+
+    # Sauvegarde du modèle Keras au format .keras
+    mt_model.model.save("naca_multitask_model.keras")
+
+    # Sauvegarde du préprocesseur (scalers et encodeurs) avec pickle
+    with open("preprocessor.pkl", "wb") as f:
+        pickle.dump(preprocessor, f)
+
+    # Sauvegarde du jeu de test pour analyses ultérieures
+    df_test.to_csv("dataset_test_isolated.csv", index=False)
+
+    # Affichage des confirmations de sauvegarde
+    print("→ 'naca_multitask_model.keras' enregistré.")
+    print("→ 'preprocessor.pkl' enregistré.")
+    print("→ 'dataset_test_isolated.csv' enregistré pour l'analyse.")
+    print("Entraînement terminé avec succès.")
