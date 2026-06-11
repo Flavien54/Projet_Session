@@ -20,6 +20,7 @@ import argparse
 import pathlib
 import time
 from typing import Dict, List, Optional, Set
+from pandas.errors import EmptyDataError
 
 import aerosandbox as asb
 import numpy as np
@@ -236,7 +237,7 @@ class DatasetBuilder:
             for re in self.RE_RANGE:
                 for alpha in self.ALPHA_RANGE:
                     rows.append({
-                        "naca": name,
+                        "airfoil": name,
                         "source": source,
                         "t": geom["t"],
                         "camber": geom["camber"],
@@ -275,10 +276,10 @@ class DatasetBuilder:
         first_write = True
         try:
             df_exist = pd.read_csv(self.output_path)
-            deja_faits = set(df_exist["naca"].unique())
+            deja_faits = set(df_exist["airfoil"].unique())
             first_write = False
             print(f"\n  Reprise : {len(deja_faits)} profils déjà générés")
-        except FileNotFoundError:
+        except (FileNotFoundError, EmptyDataError):
             print(f"\n  Nouveau fichier : {self.output_path}")
 
         restants = [p for p in all_profiles if p["name"] not in deja_faits]
@@ -338,8 +339,8 @@ class DatasetBuilder:
         print(f"  Temps total      : {elapsed/60:.1f} min")
         print("\n  Par source :")
         print(df.groupby("source").agg(
-            profils=("naca", "nunique"),
-            lignes=("naca", "count"),
+            profils=("airfoil", "nunique"),
+            lignes=("airfoil", "count"),
         ).to_string())
         print("\n  Plages des 8 features géométriques :")
         print(df[["t", "camber", "x_t", "x_c",
