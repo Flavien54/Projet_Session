@@ -1,0 +1,22 @@
+# AeroPredict — dépendances (MGA 802)
+
+# Cœur du pipeline
+numpy
+pandas
+PyYAML
+
+# Visualisation
+matplotlib
+seaborn
+plotly
+streamlit
+
+# Tests
+pytest
+
+# Machine Learning (entraînement / inférence — Python <= 3.13 requis)
+scikit-learn
+# tensorflow>=2.16    # décommenter sur une machine compatible
+
+# Génération du dataset (profils + simulations XFoil)
+# aerosandbox          # décommenter pour reconstruire le dataset
