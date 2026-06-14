@@ -328,7 +328,7 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
 
 
 def page_performance(df_merge: pd.DataFrame) -> None:
-    """Page 2 : performance globale du modèle ML face à XFoil."""
+    """Page 2 : performance globale du modèle ML face à XFoil avec graphiques de dispersion et d'erreur sur fond blanc et titres centrés (haut contraste)."""
     st.header("Performance du modèle ML")
 
     seulement_convergees = st.checkbox(
@@ -338,52 +338,153 @@ def page_performance(df_merge: pd.DataFrame) -> None:
     df_eval = df_merge[df_merge["converged"]] if seulement_convergees else df_merge
     st.caption(f"{len(df_eval):,} points d'évaluation")
 
+    # Définition des couleurs spécifiques par coefficient (ajustées pour fond blanc et lisibilité)
+    couleurs_coefs = {
+        "CL": {"principal": "#2196F3", "fonce": "#0B79D0", "nom": "Coefficient de portance"},  # Bleu
+        "CD": {"principal": "#4CAF50", "fonce": "#388E3C", "nom": "Coefficient de traînée"},  # Vert
+        "CM": {"principal": "#E91E63", "fonce": "#C2185B", "nom": "Coefficient de moment"},  # Rose/Rouge
+    }
+
     labels_coef = {
         "CL": "c<sub>l</sub>",
         "CD": "c<sub>d</sub>",
         "CM": "c<sub>m</sub>",
     }
-    colonnes = st.columns(3)
-    for col_st, coef in zip(colonnes, ["CL", "CD", "CM"]):
+
+    # ── ÉTAPE 1 : Calcul et affichage des métriques textuelles ──
+    colonnes_metriques = st.columns(3)
+    toutes_metriques = {}
+
+    for col_st, coef in zip(colonnes_metriques, ["CL", "CD", "CM"]):
         m = calculer_metriques(df_eval[f"{coef}_xfoil"].values, df_eval[f"{coef}_ml"].values)
+        toutes_metriques[coef] = m
         with col_st:
             st.markdown(f"<h3 style='margin-bottom:0'>{labels_coef[coef]}</h3>", unsafe_allow_html=True)
-            st.metric("R²",   f"{m['R2']:.4f}")
-            st.metric("MAE",  f"{m['MAE']:.5f}")
+            st.metric("R²", f"{m['R2']:.4f}")
+            st.metric("MAE", f"{m['MAE']:.5f}")
             st.metric("RMSE", f"{m['RMSE']:.5f}")
 
     st.divider()
-    st.subheader("Dispersion prédictions vs XFoil")
 
-    n_points = st.slider("Points affichés (échantillon aléatoire)", 1_000, 50_000, 10_000, step=1_000)
+    # Échantillonnage pour fluidifier l'affichage des graphiques de dispersion
+    n_points = st.slider("Points affichés pour la dispersion (échantillon aléatoire)", 1_000, 50_000, 15_000,
+                         step=1_000)
     echantillon = df_eval.sample(min(n_points, len(df_eval)), random_state=42)
 
-    colonnes2 = st.columns(3)
-    for col_st, coef in zip(colonnes2, ["CL", "CD", "CM"]):
-        x     = echantillon[f"{coef}_xfoil"]
-        y     = echantillon[f"{coef}_ml"]
+    # ── ÉTAPE 2 : Première rangée - Graphiques de dispersion (y = x) ──
+    st.subheader("Dispersion : Prédictions vs Références (XFoil)")
+    colonnes_dispersion = st.columns(3)
+
+    for col_st, coef in zip(colonnes_dispersion, ["CL", "CD", "CM"]):
+        x = echantillon[f"{coef}_xfoil"]
+        y = echantillon[f"{coef}_ml"]
         borne = [float(min(x.min(), y.min())), float(max(x.max(), y.max()))]
+        c_p = couleurs_coefs[coef]["principal"]
+        nom_complet = couleurs_coefs[coef]["nom"]
 
-        fig = go.Figure()
-        fig.add_trace(go.Scattergl(
+        fig_disp = go.Figure()
+        # Points de dispersion
+        fig_disp.add_trace(go.Scattergl(
             x=x, y=y, mode="markers",
-            marker=dict(size=3, color=COULEUR_XFOIL, opacity=0.3),
-            name=coef, showlegend=False,
-        ))
-        fig.add_trace(go.Scatter(
-            x=borne, y=borne, mode="lines",
-            line=dict(color=COULEUR_ML, dash="dash"), name="y = x",
-        ))
-        fig.update_layout(
-            title=f"{coef} — prédiction vs référence",
-            xaxis_title=f"{coef} XFoil",
-            yaxis_title=f"{coef} ML",
-            height=400,
-            margin=dict(t=50, b=40),
+            marker=dict(size=4, color=c_p, opacity=0.5),
             showlegend=False,
-        )
-        col_st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        ))
+        # Ligne idéale y = x passe en NOIR discret pour être visible partout (même sur CM)
+        fig_disp.add_trace(go.Scatter(
+            x=borne, y=borne, mode="lines",
+            line=dict(color="#000000", dash="dash", width=2),
+            name="Idéal (y=x)",
+        ))
 
+        fig_disp.update_layout(
+            title=dict(
+                text=f"<b>{nom_complet}</b>",
+                x=0.5,
+                y=0.95,
+                xanchor="center",
+                yanchor="top",
+                xref="paper",
+                font=dict(size=14),
+            ),
+            xaxis=dict(
+                title=dict(text=f"<b>{nom_complet} Réel</b>", font=dict(size=11)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=1.5, linecolor="black", mirror=True,
+                zeroline=False
+            ),
+            yaxis=dict(
+                title=dict(text=f"<b>{nom_complet} Prédit</b>", font=dict(size=11)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=1.5, linecolor="black", mirror=True,
+                zeroline=False
+            ),
+            height=380,
+            margin=dict(t=60, b=50, l=50, r=20),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            legend=dict(x=0.05, y=0.95, yanchor="top", bgcolor="rgba(255,255,255,0.9)", bordercolor="black",
+                        borderwidth=1)
+        )
+        col_st.plotly_chart(fig_disp, use_container_width=True, config={"displayModeBar": False})
+
+    # ── ÉTAPE 3 : Deuxième rangée - Distribution des erreurs (Histogrammes) ──
+    st.subheader("Distribution de la valeur absolue de l'erreur")
+    colonnes_erreur = st.columns(3)
+
+    for col_st, coef in zip(colonnes_erreur, ["CL", "CD", "CM"]):
+        erreurs_abs = np.abs(df_eval[f"{coef}_xfoil"].values - df_eval[f"{coef}_ml"].values)
+        mae_val = toutes_metriques[coef]["MAE"]
+        c_p = couleurs_coefs[coef]["principal"]
+        c_f = couleurs_coefs[coef]["fonce"]
+        nom_complet = couleurs_coefs[coef]["nom"]
+
+        fig_hist = go.Figure()
+        # Histogramme des erreurs
+        fig_hist.add_trace(go.Histogram(
+            x=erreurs_abs,
+            autobinx=True,
+            marker=dict(color=c_p, opacity=0.75, line=dict(color=c_f, width=0.5)),
+            showlegend=False,
+        ))
+        # La ligne verticale prend désormais la couleur "foncée" propre au coefficient (pas de conflit)
+        fig_hist.add_vline(
+            x=mae_val, line_dash="dash", line_color=c_f, line_width=2,
+        )
+        # Trace fantôme pour la légende
+        fig_hist.add_trace(go.Scatter(
+            x=[None], y=[None], mode="lines",
+            line=dict(color=c_f, dash="dash", width=2),
+            name=f"MAE = {mae_val:.6f}"
+        ))
+
+        fig_hist.update_layout(
+            title=dict(
+                text=f"<b>Distribution |Erreur| — {coef}</b>",
+                x=0.5,
+                y=0.95,
+                xanchor="center",
+                yanchor="top",
+                xref="paper",
+                font=dict(size=14),
+            ),
+            xaxis=dict(
+                title=dict(text=f"<b>|{nom_complet} Réel − Prédit|</b>", font=dict(size=11)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=1.5, linecolor="black", mirror=True,
+            ),
+            yaxis=dict(
+                title=dict(text="<b>Fréquence</b>", font=dict(size=11)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=1.5, linecolor="black", mirror=True,
+            ),
+            height=380,
+            margin=dict(t=60, b=50, l=50, r=20),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            legend=dict(x=0.95, y=0.95, xanchor="right", yanchor="top", bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="black", borderwidth=1)
+        )
+        col_st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": False})
 
 def page_optimisation(df_ml: pd.DataFrame) -> None:
     """Page 3 : recherche du profil maximisant la finesse CL/CD."""
@@ -534,7 +635,7 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
 
 def main() -> None:
     """Construit la structure du dashboard et route vers la page choisie."""
-    st.title("✈️ AeroPredict — Optimisation de profils assistée par ML")
+    st.title("✈️ AeroPredict — Optimisation de profils assistée par Machine Learning")
     st.caption("MGA 802 · Blanchard / Mechref / Condette — XFoil vs réseau de neurones multi-tâches, validation Ansys Fluent")
 
     for fichier in (CSV_XFOIL, CSV_ML):
