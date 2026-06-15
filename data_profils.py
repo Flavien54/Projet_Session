@@ -1,6 +1,6 @@
-"""DatasetBuilder — Construction complète du dataset AeroPredict.
-
-
+"""
+DatasetBuilder — Construction complète du dataset AeroPredict
+MGA 802 · AeroPredict
 
 Un seul script qui :
   1. Génère la grille paramétrique NACA 4 chiffres
@@ -11,99 +11,104 @@ Un seul script qui :
 
 Les colonnes CL, CD, CM seront ajoutées ultérieurement via XFoil.
 
-Usage:
-    python dataset_builder.py           # dataset complet
-    python dataset_builder.py --test    # 10 profils, test rapide
-"""
+Colonnes produites (14) :
+    naca        nom du profil
+    source      naca_grid ou uiuc
+    t           épaisseur relative maximale
+    camber      cambrure maximale
+    x_t         position du max d'épaisseur
+    x_c         position du max de cambrure
+    LE_radius   rayon de bord d'attaque
+    TE_angle    angle de bord de fuite
+    t_over_xt   rapport t / x_t
+    area        aire de la section
+    alpha       angle d'attaque
+    Re          nombre de Reynolds
 
-import argparse
-import pathlib
-import time
-from typing import Dict, List, Optional, Set
-from pandas.errors import EmptyDataError
+Résultat attendu :
+    1 337 profils × 60 alpha × 5 Re = ~401 100 lignes
+
+Usage :
+    python dataset_builder.py             # dataset complet
+    python dataset_builder.py --test      # 10 profils, test rapide
+"""
 
 import aerosandbox as asb
 import numpy as np
 import pandas as pd
+import pathlib
+import time
+import argparse
 
 
 class DatasetBuilder:
-    """Construit le dataset géométrique complet (NACA + UIUC) pour AeroPredict.
+    """
+    Construit le dataset géométrique complet (NACA + UIUC) pour AeroPredict.
 
-    Attributes:
-        ALPHA_RANGE (np.ndarray): Plage des angles d'attaque (60 valeurs).
-        RE_RANGE (List[float]): Liste des nombres de Reynolds (5 valeurs).
-        M_RANGE (List[int]): Chiffres de cambrure max (1er chiffre NACA / 100).
-        P_RANGE (List[int]): Chiffres de position cambrure (2e chiffre NACA / 10).
-        T_RANGE (List[int]): Chiffres d'épaisseur relative (3e+4e chiffres / 100).
-        UIUC_FAMILIES (List[str]): Familles de profils UIUC retenues.
-        output_path (str): Chemin du fichier CSV de sortie.
-        max_profils (Optional[int]): Nombre maximum de profils à traiter (mode test).
+    Grille NACA
+    -----------
+    M_RANGE : cambrure max        (1er chiffre NACA / 100)
+    P_RANGE : position cambrure   (2e  chiffre NACA / 10)
+    T_RANGE : épaisseur relative  (3e+4e chiffres   / 100)
+
+    Familles UIUC retenues
+    ----------------------
+    Eppler (e), Wortmann FX (fx), NREL S (s), AG (ag),
+    MH (mh), HQ (hq), Selig-Donovan (sd), Clark Y, Göttingen (goe)
     """
 
-    #: Plages de conditions de vol (60 valeurs de -6° à 23.5° par pas de 0.5°)
-    ALPHA_RANGE: np.ndarray = np.arange(-6, 24, 0.5, dtype=float)
-    
-    #: Liste des nombres de Reynolds retenus
-    RE_RANGE: List[float] = [5e4, 1e5, 5e5, 1e6, 5e6]
+    # ── Plages de conditions de vol ─────────────────────────────────
+    ALPHA_RANGE = np.arange(-6, 24, 0.5, dtype=float)   # 60 valeurs
+    RE_RANGE    = [5e4, 1e5, 5e5, 1e6, 5e6]             # 5 valeurs
 
-    #: Grille NACA : Cambrure maximale
-    M_RANGE: List[int] = [0, 1, 2, 3, 4, 5, 6]
-    
-    #: Grille NACA : Position de la cambrure maximale
-    P_RANGE: List[int] = [1, 2, 3, 4, 5, 6]
-    
-    #: Grille NACA : Épaisseur relative
-    T_RANGE: List[int] = [6, 8, 10, 12, 15, 18, 21, 24]
+    # ── Grille NACA ─────────────────────────────────────────────────
+    M_RANGE = [0, 1, 2, 3, 4, 5, 6]
+    P_RANGE = [1, 2, 3, 4, 5, 6]
+    T_RANGE = [6, 8, 10, 12, 15, 18, 21, 24]
 
-    #: Préfixes des familles de profils UIUC sélectionnés
-    UIUC_FAMILIES: List[str] = ["e", "fx", "s", "ag", "mh", "hq", "sd", "clarky", "goe"]
+    # ── Familles UIUC ───────────────────────────────────────────────
+    UIUC_FAMILIES = ["e", "fx", "s", "ag", "mh", "hq", "sd", "clarky", "goe"]
 
-    def __init__(self, output_path: str = "dataset_profil.csv", max_profils: Optional[int] = None) -> None:
-        """Initialise le constructeur de dataset.
+    def __init__(
+        self,
+        output_path : str = "dataset.csv",
+        max_profils : int = None,
+    ):
+        self.output_path = output_path
+        self.max_profils = max_profils
 
-        Args:
-            output_path: Chemin du fichier CSV de sortie. En fonction du mode,
-                il peut être écrasé ou complété.
-            max_profils: Limite le nombre de profils traités si renseigné.
+    # ══════════════════════════════════════════════════════════════
+    # 1. GÉNÉRATION DE LA LISTE DES PROFILS
+    # ══════════════════════════════════════════════════════════════
+
+    def _naca_profiles(self) -> list:
         """
-        self.output_path: str = output_path
-        self.max_profils: Optional[int] = max_profils
-
-    def _naca_profiles(self) -> List[Dict[str, str]]:
-        """Génère la liste combinatoire des profils NACA à 4 chiffres.
-
-        Les profils m=0 étant symétriques, la position de la cambrure (p) n'a pas
-        d'impact géométrique. On ne garde donc qu'une seule valeur de p pour m=0.
-
-        Returns:
-            Une liste de dictionnaires contenant le nom du profil et sa source.
-            Exemple: [{'name': 'naca0106', 'source': 'naca_grid'}, ...]
+        Retourne la liste des profils NACA 4 chiffres.
+        Les profils m=0 sont symétriques quelle que soit p →
+        on n'en garde qu'un seul (p fixé à p_range[0]).
         """
         profiles = []
 
         for m in self.M_RANGE:
             for p in self.P_RANGE:
+
                 if m == 0 and p != self.P_RANGE[0]:
                     continue
 
                 for t in self.T_RANGE:
                     profiles.append({
-                        "name": f"naca{m}{p}{t:02d}",
+                        "name"  : f"naca{m}{p}{t:02d}",
                         "source": "naca_grid",
                     })
 
         return profiles
 
-    def _uiuc_profiles(self) -> List[Dict[str, str]]:
-        """Recherche et filtre les profils UIUC disponibles dans AeroSandbox.
-
-        Exclut les profils dont le nom commence par 'naca' pour éviter les doublons.
-
-        Returns:
-            Une liste de dictionnaires contenant les métadonnées des profils UIUC.
+    def _uiuc_profiles(self) -> list:
         """
-        pkg_path = pathlib.Path(asb.__file__).parent
+        Retourne les profils UIUC disponibles dans AeroSandbox,
+        filtrés par famille, hors profils NACA.
+        """
+        pkg_path  = pathlib.Path(asb.__file__).parent
         dat_files = pkg_path.rglob("*.dat")
         all_names = [f.stem for f in dat_files]
 
@@ -114,59 +119,54 @@ class DatasetBuilder:
             for famille in self.UIUC_FAMILIES:
                 if name.startswith(famille):
                     selected.append({
-                        "name": name,
+                        "name"  : name,
                         "source": "uiuc",
                     })
                     break
 
         return selected
 
-    def _all_profiles(self) -> List[Dict[str, str]]:
-        """Fusionne les listes de profils NACA et UIUC et applique les filtres.
-
-        Affiche un résumé statistique global des volumes de données à générer dans la console.
-
-        Returns:
-            La liste combinée et potentiellement tronquée des profils.
-        """
-        naca = self._naca_profiles()
-        uiuc = self._uiuc_profiles()
+    def _all_profiles(self) -> list:
+        """Fusionne NACA + UIUC et applique la limite max_profils."""
+        naca  = self._naca_profiles()
+        uiuc  = self._uiuc_profiles()
         all_p = naca + uiuc
 
         if self.max_profils:
             all_p = all_p[: self.max_profils]
 
         n_alpha = len(self.ALPHA_RANGE)
-        n_re = len(self.RE_RANGE)
-        lignes = len(all_p) * n_alpha * n_re
+        n_re    = len(self.RE_RANGE)
+        lignes  = len(all_p) * n_alpha * n_re
 
         print(f"\n  Profils NACA   : {len(naca)}")
         print(f"  Profils UIUC   : {len(uiuc)}")
-        print(f"  Total profils  : {len(all_p)}" + (f"  (limité à {self.max_profils})" if self.max_profils else ""))
+        print(f"  Total profils  : {len(all_p)}"
+              + (f"  (limité à {self.max_profils})" if self.max_profils else ""))
         print(f"  Alpha          : {n_alpha} valeurs  ({self.ALPHA_RANGE[0]}° → {self.ALPHA_RANGE[-1]}°)")
         print(f"  Re             : {n_re} valeurs  {self.RE_RANGE}")
         print(f"  Lignes totales : ~{lignes:,}  ({n_alpha} α × {n_re} Re × {len(all_p)} profils)")
 
         return all_p
 
-    def _get_geometry(self, name: str) -> Dict[str, float]:
-        """Extrait les 8 features géométriques d'un profil via AeroSandbox.
+    # ══════════════════════════════════════════════════════════════
+    # 2. EXTRACTION DES 8 FEATURES GÉOMÉTRIQUES
+    # ══════════════════════════════════════════════════════════════
 
-        Cette méthode est purement géométrique et n'exécute aucune simulation aérodynamique.
+    def _get_geometry(self, name: str) -> dict:
+        """
+        Extrait les 8 features géométriques d'un profil via AeroSandbox.
+        Fonctionne pour NACA et UIUC sans aucune simulation.
 
-        Args:
-            name: Nom du profil aérodynamique reconnu par AeroSandbox.
-
-        Returns:
-            Un dictionnaire contenant les caractéristiques géométriques calculées :
-                - t : Épaisseur relative maximale.
-                - camber : Cambrure maximale.
-                - x_t : Position du maximum d'épaisseur sur l'extrados.
-                - x_c : Position du maximum de cambrure.
-                - LE_radius : Rayon du bord d'attaque.
-                - TE_angle : Angle géométrique du bord de fuite (en degrés).
-                - t_over_xt : Rapport t / x_t.
-                - area : Aire de la section transversale du profil.
+        Features retournées :
+            t           épaisseur relative maximale
+            camber      cambrure maximale
+            x_t         position du max d'épaisseur (extrados)
+            x_c         position du max de cambrure (ligne de cambrure)
+            LE_radius   rayon de bord d'attaque
+            TE_angle    angle de bord de fuite
+            t_over_xt   rapport t / x_t
+            area        aire de la section transversale
         """
         af = asb.Airfoil(name)
 
@@ -177,25 +177,29 @@ class DatasetBuilder:
         camber = float(af.max_camber())
 
         # 3. Position du maximum d'épaisseur sur l'extrados
-        coords = af.coordinates
-        n = len(coords) // 2
+        coords  = af.coordinates
+        n       = len(coords) // 2
         x_upper = coords[:n, 0]
         y_upper = coords[:n, 1]
-        x_t = float(x_upper[np.argmax(y_upper)])
+        x_t     = float(x_upper[np.argmax(y_upper)])
 
         # 4. Position du maximum de cambrure
-        x_lower = coords[n:, 0]
-        y_lower = coords[n:, 1]
+        # Ligne de cambrure = moyenne extrados / intrados
+        x_lower  = coords[n:, 0]
+        y_lower  = coords[n:, 1]
         y_camber = (y_upper + np.interp(x_upper, x_lower[::-1], y_lower[::-1])) / 2
-        x_c = float(x_upper[np.argmax(np.abs(y_camber))])
+        x_c      = float(x_upper[np.argmax(np.abs(y_camber))])
 
         # 5. Rayon de bord d'attaque
         LE_radius = float(af.LE_radius())
 
-        # 6. Angle de bord de fuite
-        v_upper = coords[0] - coords[1]
-        v_lower = coords[-1] - coords[-2]
-        cos_a = np.dot(v_upper, v_lower) / (np.linalg.norm(v_upper) * np.linalg.norm(v_lower) + 1e-12)
+        # 6. Angle de bord de fuite — calcul direct sur les coordonnées
+        # af.TE_angle() retourne des valeurs aberrantes (>800°)
+        # Angle entre vecteurs tangents extrados/intrados au bord de fuite
+        v_upper  = coords[0]  - coords[1]
+        v_lower  = coords[-1] - coords[-2]
+        cos_a    = np.dot(v_upper, v_lower) / (
+                   np.linalg.norm(v_upper) * np.linalg.norm(v_lower) + 1e-12)
         TE_angle = float(np.degrees(np.arccos(np.clip(cos_a, -1.0, 1.0))))
 
         # 7. Rapport épaisseur / position
@@ -205,50 +209,54 @@ class DatasetBuilder:
         area = float(af.area())
 
         return {
-            "t": round(t, 6),
-            "camber": round(camber, 6),
-            "x_t": round(x_t, 4),
-            "x_c": round(x_c, 4),
-            "LE_radius": round(LE_radius, 6),
-            "TE_angle": round(TE_angle, 6),
-            "t_over_xt": round(t_over_xt, 6),
-            "area": round(area, 6),
+            "t"         : round(t,          6),
+            "camber"    : round(camber,     6),
+            "x_t"       : round(x_t,        4),
+            "x_c"       : round(x_c,        4),
+            "LE_radius" : round(LE_radius,  6),
+            "TE_angle"  : round(TE_angle,   6),
+            "t_over_xt" : round(t_over_xt,  6),
+            "area"      : round(area,       6),
         }
 
-    def _generate_combinations(self, meta: Dict[str, str]) -> Optional[pd.DataFrame]:
-        """Génère toutes les combinaisons de conditions de vol pour un profil donné.
+    # ══════════════════════════════════════════════════════════════
+    # 3. GÉNÉRATION DES LIGNES POUR UN PROFIL
+    # ══════════════════════════════════════════════════════════════
 
-        Associe la géométrie extraite à la matrice croisée (ALPHA_RANGE × RE_RANGE).
-
-        Args:
-            meta: Dictionnaire contenant les clés 'name' et 'source' du profil.
-
-        Returns:
-            Un DataFrame pandas de 300 lignes contenant toutes les variantes,
-            ou None si une erreur survient lors de l'extraction géométrique.
+    def _generate_combinations(self, meta: dict) -> pd.DataFrame:
         """
-        name = meta["name"]
+        Génère toutes les combinaisons (alpha × Re) pour un profil,
+        avec ses 8 features géométriques.
+
+        Retourne un DataFrame de 300 lignes (60 α × 5 Re) ou None.
+        """
+        name   = meta["name"]
         source = meta["source"]
 
         try:
+            # Extraire les 8 features géométriques une seule fois par profil
             geom = self._get_geometry(name)
+
             rows = []
 
             for re in self.RE_RANGE:
                 for alpha in self.ALPHA_RANGE:
                     rows.append({
-                        "airfoil": name,
-                        "source": source,
-                        "t": geom["t"],
-                        "camber": geom["camber"],
-                        "x_t": geom["x_t"],
-                        "x_c": geom["x_c"],
-                        "LE_radius": geom["LE_radius"],
-                        "TE_angle": geom["TE_angle"],
-                        "t_over_xt": geom["t_over_xt"],
-                        "area": geom["area"],
-                        "alpha": float(alpha),
-                        "Re": float(re),
+                        # Identifiant
+                        "naca"      : name,
+                        "source"    : source,
+                        # 8 features géométriques
+                        "t"         : geom["t"],
+                        "camber"    : geom["camber"],
+                        "x_t"       : geom["x_t"],
+                        "x_c"       : geom["x_c"],
+                        "LE_radius" : geom["LE_radius"],
+                        "TE_angle"  : geom["TE_angle"],
+                        "t_over_xt" : geom["t_over_xt"],
+                        "area"      : geom["area"],
+                        # Conditions de vol
+                        "alpha"     : float(alpha),
+                        "Re"        : float(re),
                     })
 
             return pd.DataFrame(rows) if rows else None
@@ -257,14 +265,14 @@ class DatasetBuilder:
             print(f"    ✗  {name} : {exc}")
             return None
 
+    # ══════════════════════════════════════════════════════════════
+    # 4. CONSTRUCTION COMPLÈTE
+    # ══════════════════════════════════════════════════════════════
+
     def build(self) -> pd.DataFrame:
-        """Déclenche la construction complète du dataset et gère la sauvegarde.
-
-        Vérifie si un fichier existe déjà au chemin `output_path` pour reprendre
-        le travail là où il s'est arrêté (tolérance aux pannes).
-
-        Returns:
-            Le DataFrame final contenant l'ensemble des données consolidées.
+        """
+        Construit le dataset complet et sauvegarde progressivement.
+        Reprise automatique si le CSV existe déjà.
         """
         print("=" * 60)
         print("  DatasetBuilder — AeroPredict")
@@ -272,22 +280,24 @@ class DatasetBuilder:
 
         all_profiles = self._all_profiles()
 
-        deja_faits: Set[str] = set()
+        # ── Reprise après interruption ──────────────────────────
+        deja_faits  = set()
         first_write = True
         try:
-            df_exist = pd.read_csv(self.output_path)
-            deja_faits = set(df_exist["airfoil"].unique())
+            df_exist    = pd.read_csv(self.output_path)
+            deja_faits  = set(df_exist["naca"].unique())
             first_write = False
             print(f"\n  Reprise : {len(deja_faits)} profils déjà générés")
-        except (FileNotFoundError, EmptyDataError):
+        except FileNotFoundError:
             print(f"\n  Nouveau fichier : {self.output_path}")
 
         restants = [p for p in all_profiles if p["name"] not in deja_faits]
         print(f"  Restants : {len(restants)} profils\n")
 
-        n_ok = len(deja_faits)
+        # ── Boucle principale ────────────────────────────────────
+        n_ok  = len(deja_faits)
         n_err = 0
-        t0 = time.time()
+        t0    = time.time()
 
         for i, meta in enumerate(restants, 1):
             df_profil = self._generate_combinations(meta)
@@ -295,16 +305,15 @@ class DatasetBuilder:
             if df_profil is not None and not df_profil.empty:
                 df_profil.to_csv(
                     self.output_path,
-                    mode="a",
-                    header=first_write,
-                    index=False,
-                    encoding="utf-8"
+                    mode   = "a",
+                    header = first_write,
+                    index  = False,
                 )
                 first_write = False
                 n_ok += 1
 
                 elapsed = time.time() - t0
-                reste = (elapsed / i) * (len(restants) - i)
+                reste   = (elapsed / i) * (len(restants) - i)
                 print(
                     f"  [{i:4d}/{len(restants)}]  "
                     f"{meta['name']:22s}  "
@@ -315,47 +324,48 @@ class DatasetBuilder:
             else:
                 n_err += 1
 
+        # ── Résumé final ─────────────────────────────────────────
         df_final = pd.read_csv(self.output_path)
         self._summary(df_final, n_ok, n_err, time.time() - t0)
         return df_final
 
-    @staticmethod
-    def _summary(df: pd.DataFrame, n_ok: int, n_err: int, elapsed: float) -> None:
-        """Génère et affiche un rapport d'exécution détaillé dans la console.
+    # ══════════════════════════════════════════════════════════════
+    # 5. RÉSUMÉ
+    # ══════════════════════════════════════════════════════════════
 
-        Args:
-            df: Le DataFrame final chargé depuis le disque.
-            n_ok: Nombre de profils traités avec succès.
-            n_err: Nombre de profils ayant levé une exception.
-            elapsed: Temps total écoulé en secondes.
-        """
+    @staticmethod
+    def _summary(df: pd.DataFrame, n_ok: int, n_err: int, elapsed: float):
         print(f"\n{'=' * 60}")
-        print("  Dataset construit")
+        print(f"  Dataset construit")
         print(f"{'=' * 60}")
         print(f"  Profils générés  : {n_ok}")
         print(f"  Profils en erreur: {n_err}")
         print(f"  Lignes totales   : {len(df):,}")
-        print(f"  Colonnes ({len(df.columns):2d})     : {list(df.columns)}")
+        print(f"  Colonnes ({len(df.columns):2d})    : {list(df.columns)}")
         print(f"  Temps total      : {elapsed/60:.1f} min")
-        print("\n  Par source :")
+        print(f"\n  Par source :")
         print(df.groupby("source").agg(
-            profils=("airfoil", "nunique"),
-            lignes=("airfoil", "count"),
+            profils = ("naca", "nunique"),
+            lignes  = ("naca", "count"),
         ).to_string())
-        print("\n  Plages des 8 features géométriques :")
+        print(f"\n  Plages des 8 features géométriques :")
         print(df[["t", "camber", "x_t", "x_c",
                   "LE_radius", "TE_angle", "t_over_xt", "area"]].describe().round(4).to_string())
 
 
+# ══════════════════════════════════════════════════════════════════
+# POINT D'ENTRÉE
+# ══════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Construit le dataset AeroPredict")
-    parser.add_argument("--test", action="store_true", help="Mode test : limite à 10 profils")
-    parser.add_argument("--output", default="dataset_profil.csv", help="Fichier de sortie CSV")
+    parser.add_argument("--test",   action="store_true", help="Mode test : 10 profils")
+    parser.add_argument("--output", default="dataset.csv", help="Fichier de sortie")
     args = parser.parse_args()
 
     builder = DatasetBuilder(
-        output_path="dataset_test.csv" if args.test else args.output,
-        max_profils=10 if args.test else None,
+        output_path = "dataset_test.csv" if args.test else args.output,
+        max_profils = 10 if args.test else None,
     )
 
-    df_dataset = builder.build()
+    df = builder.build()
