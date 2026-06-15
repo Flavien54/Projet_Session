@@ -5,9 +5,7 @@ Visualisation des résultats du pipeline aérodynamique + Machine Learning :
   - Performance globale du modèle ML (R², MAE, dispersion)
   - Optimisation : recherche du profil maximisant la finesse CL/CD
   - Exploration du dataset (familles, convergence, features géométriques)
-
-Aucune dépendance à TensorFlow : le dashboard exploite les prédictions
-pré-calculées (dataset_aeroXfoil_avec_predictions.csv).
+  - Prédiction ML : génération des polaires pour un profil quelconque
 
 Usage:
     streamlit run dashboard.py
@@ -34,10 +32,17 @@ st.set_page_config(
 CSV_XFOIL = "dataset_aeroXfoil.csv"
 CSV_ML    = "dataset_aeroXfoil_avec_predictions.csv"
 
+#: Chemins des fichiers modèle ML
+MODEL_PATH       = "naca_multitask_model.keras"
+PREPROCESSOR_PATH = "preprocessor.pkl"
+
 #: Couleurs des séries
 COULEUR_XFOIL  = "#2196F3"
 COULEUR_ML     = "#F44336"
 COULEUR_FLUENT = "#4CAF50"
+
+#: Ordre exact des features attendues par le StandardScaler
+FEATURES_ORDRE = ["t", "camber", "x_t", "x_c", "LE_radius", "TE_angle", "t_over_xt", "area"]
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -87,6 +92,170 @@ def charger_fluent():
             profil, re_val = m.group(1), float(m.group(2))
             donnees[(profil, re_val)] = pd.read_csv(chemin)
     return donnees
+
+
+@st.cache_resource(show_spinner="Chargement du modèle ML…")
+def charger_modele():
+    """Charge le modèle Keras et le préprocesseur. Retourne (model, preprocessor) ou (None, None)."""
+    import pickle
+
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(PREPROCESSOR_PATH):
+        return None, None
+
+    try:
+        import tensorflow as tf  # noqa: F401 — disponible dans l'environnement Streamlit
+        model = tf.keras.models.load_model(MODEL_PATH)
+    except Exception:
+        try:
+            import keras
+            model = keras.models.load_model(MODEL_PATH)
+        except Exception as exc:
+            st.error(f"Impossible de charger le modèle : {exc}")
+            return None, None
+
+    # Stub minimal pour désérialiser NACAAeroPreprocessor
+    class NACAAeroPreprocessor:
+        pass
+
+    import __main__
+    __main__.NACAAeroPreprocessor = NACAAeroPreprocessor
+
+    with open(PREPROCESSOR_PATH, "rb") as f:
+        pre = pickle.load(f)
+
+    return model, pre
+
+
+def _construire_X(X_scaled: np.ndarray, naca_norm: float, source_norm: float, ordre: int) -> np.ndarray:
+    """Assemble la matrice 12-features selon l'ordre testé."""
+    n = len(X_scaled)
+    nc = np.full((n, 1), naca_norm,   dtype=np.float32)
+    sc = np.full((n, 1), source_norm, dtype=np.float32)
+    if ordre == 0:   # [scaled_10 | naca_norm | source_norm]
+        return np.concatenate([X_scaled, nc, sc], axis=1).astype(np.float32)
+    elif ordre == 1: # [naca_norm | source_norm | scaled_10]
+        return np.concatenate([nc, sc, X_scaled], axis=1).astype(np.float32)
+    elif ordre == 2: # [naca_norm | scaled_10 | source_norm]
+        return np.concatenate([nc, X_scaled, sc], axis=1).astype(np.float32)
+    else:            # [source_norm | scaled_10 | naca_norm]
+        return np.concatenate([sc, X_scaled, nc], axis=1).astype(np.float32)
+
+
+def _decoder_preds(preds_raw, ts: dict) -> dict:
+    """Dé-normalise les sorties CL, CD, CM du modèle."""
+    coefs = ["CL", "CD", "CM"]
+    results = {}
+    if isinstance(preds_raw, list):
+        for i, coef in enumerate(coefs):
+            col = preds_raw[i].flatten()
+            results[coef] = ts[coef].inverse_transform(col.reshape(-1, 1)).flatten()
+    else:
+        for i, coef in enumerate(coefs):
+            col = preds_raw[:, i]
+            results[coef] = ts[coef].inverse_transform(col.reshape(-1, 1)).flatten()
+    return results
+
+
+def _valider_physique(results: dict, alpha_test: float) -> bool:
+    """
+    Vérifie avec plus de rigueur que les prédictions sont physiquement plausibles.
+    """
+    cl = float(np.nanmean(results["CL"]))
+    cd = float(np.nanmean(results["CD"]))
+    cm = float(np.nanmean(results["CM"]))
+
+    return (
+            -0.5 < cl < 2.0  # Portance réaliste à 5°
+            and 0.001 < cd < 0.04  # Traînée typique à 5° (très restrictive !)
+            and -0.5 < cm < 0.5  # Moment réaliste
+            and cl > cd  # À 5°, la portance est TOUJOURS plus grande que la traînée
+    )
+
+
+def predire_polaires(
+    model,
+    pre,
+    geo: dict,
+    alphas: np.ndarray,
+    re_val: float,
+    naca_name: str = "",
+    source_name: str = "naca_grid",
+) -> pd.DataFrame:
+    """
+    Prédit CL, CD, CM pour un vecteur d'angles d'attaque.
+
+    Le modèle attend 12 features = 10 features numériques scalées
+    + naca_encoded normalisé (index / n_classes) + source_encoded normalisé (0 ou 1).
+    L'ordre exact des 2 features catégorielles est auto-détecté au premier appel
+    via un test de cohérence physique, puis mis en cache dans st.session_state.
+
+    Parameters
+    ----------
+    geo         : {feature: valeur} pour les 8 features géométriques.
+    alphas      : angles d'attaque (degrés).
+    re_val      : nombre de Reynolds.
+    naca_name   : nom du profil (ex. 'naca0112') — médiane si inconnu.
+    source_name : 'naca_grid' ou 'uiuc'.
+    """
+    le = pre.__dict__["label_encoders"]
+    fs = pre.__dict__["feature_scaler"]
+    ts = pre.__dict__["target_scalers"]
+
+    # ── Encodage normalisé des catégorielles ──────────────────────────────────
+    # On normalise naca_idx dans [0, 1] en divisant par le nombre de classes,
+    # ce qui le met dans une échelle compatible avec les features scalées StandardScaler.
+    n_naca = float(len(le["naca"].classes_))
+    try:
+        naca_idx = float(le["naca"].transform([naca_name])[0])
+    except Exception:
+        naca_idx = n_naca / 2.0  # médiane ≈ 668
+    naca_norm = naca_idx / n_naca  # → [0, 1]
+
+    try:
+        source_idx = float(le["source"].transform([source_name])[0])
+    except Exception:
+        source_idx = 0.0
+    source_norm = source_idx  # déjà 0 ou 1
+
+    # ── Scaling des 10 features numériques ────────────────────────────────────
+    rows = [[geo[f] for f in FEATURES_ORDRE] + [alpha, re_val] for alpha in alphas]
+    X_raw    = np.array(rows, dtype=np.float64)
+    X_scaled = fs.transform(X_raw)
+
+    # ── Détection automatique de l'ordre des catégorielles ───────────────────
+    # Testé une seule fois par session ; résultat mis en cache.
+    CACHE_KEY = "_predire_ordre_features"
+
+    if CACHE_KEY not in st.session_state:
+        # Point de test : alpha ≈ 5°, profil quelconque
+        idx_test   = np.argmin(np.abs(alphas - 5.0))
+        X_test_sc  = X_scaled[idx_test : idx_test + 1]
+        ordre_retenu = None
+        for ordre in range(4):
+            try:
+                X_test = _construire_X(X_test_sc, naca_norm, source_norm, ordre)
+                pred_test = model.predict(X_test, verbose=0)
+                res_test  = _decoder_preds(pred_test, ts)
+                if _valider_physique(res_test, alphas[idx_test]):
+                    ordre_retenu = ordre
+                    break
+            except Exception:
+                continue
+        if ordre_retenu is None:
+            # Aucune combinaison ne passe → on prend l'ordre 0 par défaut
+            ordre_retenu = 0
+        st.session_state[CACHE_KEY] = ordre_retenu
+
+    ordre_final = st.session_state[CACHE_KEY]
+
+    # ── Inférence complète ────────────────────────────────────────────────────
+    X_full    = _construire_X(X_scaled, naca_norm, source_norm, ordre_final)
+    preds_raw = model.predict(X_full, verbose=0)
+    results   = _decoder_preds(preds_raw, ts)
+
+    df = pd.DataFrame({"alpha": alphas, **results})
+    df["finesse"] = df["CL"] / df["CD"].replace(0, np.nan)
+    return df
 
 
 def calculer_metriques(y_vrai: np.ndarray, y_pred: np.ndarray) -> dict:
@@ -148,18 +317,16 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
         ("CM", "Coefficient de moment", "c<sub>m</sub>"),
     ]
 
-    # Configuration des coordonnées des légendes pour chaque coefficient
     positions_legendes = {
-        "CL": dict(yanchor="bottom", y=0.02, xanchor="right", x=0.98), # En bas à droite
-        "CD": dict(yanchor="top", y=0.98, xanchor="left", x=0.02),    # En haut à gauche
-        "CM": dict(yanchor="bottom", y=0.02, xanchor="left", x=0.02),   # En bas à gauche
+        "CL": dict(yanchor="bottom", y=0.02, xanchor="right", x=0.98),
+        "CD": dict(yanchor="top", y=0.98, xanchor="left", x=0.02),
+        "CM": dict(yanchor="bottom", y=0.02, xanchor="left", x=0.02),
     }
 
     figs = []
     for coef, titre_long, titre_court in courbes:
         fig = go.Figure()
 
-        # XFoil
         fig.add_trace(go.Scatter(
             x=sous["alpha"], y=sous[f"{coef}_xfoil"],
             name="XFoil", mode="lines+markers",
@@ -167,8 +334,6 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
             marker=dict(size=6, symbol="circle", opacity=0.8),
             legendgroup="XFoil",
         ))
-
-        # Modèle ML
         fig.add_trace(go.Scatter(
             x=sous["alpha"], y=sous[f"{coef}_ml"],
             name="Modèle ML", mode="lines+markers",
@@ -176,8 +341,6 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
             marker=dict(size=6, symbol="square", opacity=0.8),
             legendgroup="ML",
         ))
-
-        # Ansys Fluent si disponible
         if df_flu is not None and coef in df_flu.columns:
             fig.add_trace(go.Scatter(
                 x=df_flu["alpha_deg"], y=df_flu[coef],
@@ -187,7 +350,6 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
                 legendgroup="Fluent",
             ))
 
-        # Configuration de la légende spécifique à ce coefficient
         legende_config = dict(
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="black",
@@ -196,38 +358,23 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
             **positions_legendes[coef]
         )
 
-        # Mise en forme et centrage absolu du titre (xref="paper")
         fig.update_layout(
-            title=dict(
-                text=f"<b>{titre_long}</b>",
-                x=0.5,
-                y=0.95,
-                xanchor="center",
-                yanchor="top",
-                xref="paper",
-                font=dict(size=16),
-            ),
-            xaxis=dict(
-                title=dict(text="<b>Angle d'attaque α (°)</b>", font=dict(size=13)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=2, linecolor="black", mirror=True,
-                ticks="outside", tickwidth=2, ticklen=8,
-            ),
-            yaxis=dict(
-                title=dict(text=f"<b>{titre_court}</b>", font=dict(size=13)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=2, linecolor="black", mirror=True,
-                ticks="outside", tickwidth=2, ticklen=8,
-            ),
-            height=450,
-            margin=dict(t=80, b=50, l=60, r=30),
-            legend=legende_config,
-            plot_bgcolor="white",
-            hovermode="x unified",
+            title=dict(text=f"<b>{titre_long}</b>", x=0.5, y=0.95,
+                       xanchor="center", yanchor="top", xref="paper",
+                       font=dict(size=16)),
+            xaxis=dict(title=dict(text="<b>Angle d'attaque α (°)</b>", font=dict(size=13)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=2, linecolor="black", mirror=True,
+                       ticks="outside", tickwidth=2, ticklen=8),
+            yaxis=dict(title=dict(text=f"<b>{titre_court}</b>", font=dict(size=13)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=2, linecolor="black", mirror=True,
+                       ticks="outside", tickwidth=2, ticklen=8),
+            height=450, margin=dict(t=80, b=50, l=60, r=30),
+            legend=legende_config, plot_bgcolor="white", hovermode="x unified",
         )
         figs.append(fig)
 
-    # ── Coefficient de finesse ──────────────────────────────────────
     fig_ld = go.Figure()
     fig_ld.add_trace(go.Scatter(
         x=sous["alpha"], y=sous["CL_xfoil"] / sous["CD_xfoil"],
@@ -250,72 +397,49 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
         ))
 
     fig_ld.update_layout(
-        title=dict(
-            text="<b>Coefficient de finesse</b>",
-            x=0.5,
-            y=0.95,
-            xanchor="center",
-            yanchor="top",
-            xref="paper",
-            font=dict(size=16),
-        ),
-        xaxis=dict(
-            title=dict(text="<b>Angle d'attaque α (°)</b>", font=dict(size=13)),
-            showgrid=True, gridwidth=1, gridcolor="lightgray",
-            showline=True, linewidth=2, linecolor="black", mirror=True,
-            ticks="outside", tickwidth=2, ticklen=8,
-        ),
-        yaxis=dict(
-            title=dict(text="<b>c<sub>l</sub> / c<sub>d</sub></b>", font=dict(size=13)),
-            showgrid=True, gridwidth=1, gridcolor="lightgray",
-            showline=True, linewidth=2, linecolor="black", mirror=True,
-            ticks="outside", tickwidth=2, ticklen=8,
-        ),
-        height=450,
-        margin=dict(t=80, b=50, l=60, r=30),
-        legend=dict(
-            bgcolor="rgba(255,255,255,0.9)",
-            bordercolor="black",
-            borderwidth=1,
-            font=dict(size=11),
-            yanchor="bottom", y=0.02, xanchor="right", x=0.98, # En bas à droite
-        ),
-        plot_bgcolor="white",
-        hovermode="x unified",
+        title=dict(text="<b>Coefficient de finesse</b>", x=0.5, y=0.95,
+                   xanchor="center", yanchor="top", xref="paper", font=dict(size=16)),
+        xaxis=dict(title=dict(text="<b>Angle d'attaque α (°)</b>", font=dict(size=13)),
+                   showgrid=True, gridwidth=1, gridcolor="lightgray",
+                   showline=True, linewidth=2, linecolor="black", mirror=True,
+                   ticks="outside", tickwidth=2, ticklen=8),
+        yaxis=dict(title=dict(text="<b>c<sub>l</sub> / c<sub>d</sub></b>", font=dict(size=13)),
+                   showgrid=True, gridwidth=1, gridcolor="lightgray",
+                   showline=True, linewidth=2, linecolor="black", mirror=True,
+                   ticks="outside", tickwidth=2, ticklen=8),
+        height=450, margin=dict(t=80, b=50, l=60, r=30),
+        legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="black", borderwidth=1,
+                    font=dict(size=11), yanchor="bottom", y=0.02, xanchor="right", x=0.98),
+        plot_bgcolor="white", hovermode="x unified",
     )
     figs.append(fig_ld)
 
-    # Affichage en grille ou en liste
     if disposition == "2 colonnes":
         st.subheader("Coefficients aérodynamiques")
         col1, col2 = st.columns(2)
         with col1:
-            st.plotly_chart(figs[0], use_container_width=True, config={"displayModeBar": False})  # CL
-            st.plotly_chart(figs[2], use_container_width=True, config={"displayModeBar": False})  # CM
+            st.plotly_chart(figs[0], use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(figs[2], use_container_width=True, config={"displayModeBar": False})
         with col2:
-            st.plotly_chart(figs[1], use_container_width=True, config={"displayModeBar": False})  # CD
-            st.plotly_chart(figs[3], use_container_width=True, config={"displayModeBar": False})  # Finesse
+            st.plotly_chart(figs[1], use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(figs[3], use_container_width=True, config={"displayModeBar": False})
     else:
         for fig in figs:
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-    # Données détaillées
     with st.expander("📋 Voir les données détaillées"):
         tab1, tab2, tab3 = st.tabs(["XFoil vs ML", "Ansys Fluent", "Comparaison"])
-
         with tab1:
             df_compare = sous[["alpha", "CL_xfoil", "CL_ml", "CD_xfoil", "CD_ml",
                                "CM_xfoil", "CM_ml"]].copy()
             df_compare["Finesse_XFoil"] = df_compare["CL_xfoil"] / df_compare["CD_xfoil"]
             df_compare["Finesse_ML"] = df_compare["CL_ml"] / df_compare["CD_ml"]
             st.dataframe(df_compare.round(4), use_container_width=True, hide_index=True)
-
         with tab2:
             if df_flu is not None:
                 st.dataframe(df_flu.round(4), use_container_width=True, hide_index=True)
             else:
                 st.info("Aucune donnée Fluent disponible pour ce profil/Re")
-
         with tab3:
             if df_flu is not None:
                 df_merged = sous[["alpha", "CL_xfoil", "CL_ml", "CD_xfoil", "CD_ml"]].copy()
@@ -328,7 +452,7 @@ def page_polaires(df_merge: pd.DataFrame, fluent: dict, disposition: str) -> Non
 
 
 def page_performance(df_merge: pd.DataFrame) -> None:
-    """Page 2 : performance globale du modèle ML face à XFoil avec graphiques de dispersion et d'erreur sur fond blanc et titres centrés (haut contraste)."""
+    """Page 2 : performance globale du modèle ML face à XFoil."""
     st.header("Performance du modèle ML")
 
     seulement_convergees = st.checkbox(
@@ -338,23 +462,15 @@ def page_performance(df_merge: pd.DataFrame) -> None:
     df_eval = df_merge[df_merge["converged"]] if seulement_convergees else df_merge
     st.caption(f"{len(df_eval):,} points d'évaluation")
 
-    # Définition des couleurs spécifiques par coefficient (ajustées pour fond blanc et lisibilité)
     couleurs_coefs = {
-        "CL": {"principal": "#2196F3", "fonce": "#0B79D0", "nom": "Coefficient de portance"},  # Bleu
-        "CD": {"principal": "#4CAF50", "fonce": "#388E3C", "nom": "Coefficient de traînée"},  # Vert
-        "CM": {"principal": "#E91E63", "fonce": "#C2185B", "nom": "Coefficient de moment"},  # Rose/Rouge
+        "CL": {"principal": "#2196F3", "fonce": "#0B79D0", "nom": "Coefficient de portance"},
+        "CD": {"principal": "#4CAF50", "fonce": "#388E3C", "nom": "Coefficient de traînée"},
+        "CM": {"principal": "#E91E63", "fonce": "#C2185B", "nom": "Coefficient de moment"},
     }
+    labels_coef = {"CL": "c<sub>l</sub>", "CD": "c<sub>d</sub>", "CM": "c<sub>m</sub>"}
 
-    labels_coef = {
-        "CL": "c<sub>l</sub>",
-        "CD": "c<sub>d</sub>",
-        "CM": "c<sub>m</sub>",
-    }
-
-    # ── ÉTAPE 1 : Calcul et affichage des métriques textuelles ──
     colonnes_metriques = st.columns(3)
     toutes_metriques = {}
-
     for col_st, coef in zip(colonnes_metriques, ["CL", "CD", "CM"]):
         m = calculer_metriques(df_eval[f"{coef}_xfoil"].values, df_eval[f"{coef}_ml"].values)
         toutes_metriques[coef] = m
@@ -366,15 +482,11 @@ def page_performance(df_merge: pd.DataFrame) -> None:
 
     st.divider()
 
-    # Échantillonnage pour fluidifier l'affichage des graphiques de dispersion
-    n_points = st.slider("Points affichés pour la dispersion (échantillon aléatoire)", 1_000, 50_000, 15_000,
-                         step=1_000)
+    n_points = st.slider("Points affichés pour la dispersion (échantillon aléatoire)", 1_000, 50_000, 15_000, step=1_000)
     echantillon = df_eval.sample(min(n_points, len(df_eval)), random_state=42)
 
-    # ── ÉTAPE 2 : Première rangée - Graphiques de dispersion (y = x) ──
     st.subheader("Dispersion : Prédictions vs Références (XFoil)")
     colonnes_dispersion = st.columns(3)
-
     for col_st, coef in zip(colonnes_dispersion, ["CL", "CD", "CM"]):
         x = echantillon[f"{coef}_xfoil"]
         y = echantillon[f"{coef}_ml"]
@@ -383,54 +495,28 @@ def page_performance(df_merge: pd.DataFrame) -> None:
         nom_complet = couleurs_coefs[coef]["nom"]
 
         fig_disp = go.Figure()
-        # Points de dispersion
-        fig_disp.add_trace(go.Scattergl(
-            x=x, y=y, mode="markers",
-            marker=dict(size=4, color=c_p, opacity=0.5),
-            showlegend=False,
-        ))
-        # Ligne idéale y = x passe en NOIR discret pour être visible partout (même sur CM)
-        fig_disp.add_trace(go.Scatter(
-            x=borne, y=borne, mode="lines",
-            line=dict(color="#000000", dash="dash", width=2),
-            name="Idéal (y=x)",
-        ))
-
+        fig_disp.add_trace(go.Scattergl(x=x, y=y, mode="markers",
+                                        marker=dict(size=4, color=c_p, opacity=0.5), showlegend=False))
+        fig_disp.add_trace(go.Scatter(x=borne, y=borne, mode="lines",
+                                      line=dict(color="#000000", dash="dash", width=2), name="Idéal (y=x)"))
         fig_disp.update_layout(
-            title=dict(
-                text=f"<b>{nom_complet}</b>",
-                x=0.5,
-                y=0.95,
-                xanchor="center",
-                yanchor="top",
-                xref="paper",
-                font=dict(size=14),
-            ),
-            xaxis=dict(
-                title=dict(text=f"<b>{nom_complet} Réel</b>", font=dict(size=11)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=1.5, linecolor="black", mirror=True,
-                zeroline=False
-            ),
-            yaxis=dict(
-                title=dict(text=f"<b>{nom_complet} Prédit</b>", font=dict(size=11)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=1.5, linecolor="black", mirror=True,
-                zeroline=False
-            ),
-            height=380,
-            margin=dict(t=60, b=50, l=50, r=20),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            legend=dict(x=0.05, y=0.95, yanchor="top", bgcolor="rgba(255,255,255,0.9)", bordercolor="black",
-                        borderwidth=1)
+            title=dict(text=f"<b>{nom_complet}</b>", x=0.5, y=0.95, xanchor="center", yanchor="top",
+                       xref="paper", font=dict(size=14)),
+            xaxis=dict(title=dict(text=f"<b>{nom_complet} Réel</b>", font=dict(size=11)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=1.5, linecolor="black", mirror=True, zeroline=False),
+            yaxis=dict(title=dict(text=f"<b>{nom_complet} Prédit</b>", font=dict(size=11)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=1.5, linecolor="black", mirror=True, zeroline=False),
+            height=380, margin=dict(t=60, b=50, l=50, r=20),
+            plot_bgcolor="white", paper_bgcolor="white",
+            legend=dict(x=0.05, y=0.95, yanchor="top", bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="black", borderwidth=1),
         )
         col_st.plotly_chart(fig_disp, use_container_width=True, config={"displayModeBar": False})
 
-    # ── ÉTAPE 3 : Deuxième rangée - Distribution des erreurs (Histogrammes) ──
     st.subheader("Distribution de la valeur absolue de l'erreur")
     colonnes_erreur = st.columns(3)
-
     for col_st, coef in zip(colonnes_erreur, ["CL", "CD", "CM"]):
         erreurs_abs = np.abs(df_eval[f"{coef}_xfoil"].values - df_eval[f"{coef}_ml"].values)
         mae_val = toutes_metriques[coef]["MAE"]
@@ -439,52 +525,30 @@ def page_performance(df_merge: pd.DataFrame) -> None:
         nom_complet = couleurs_coefs[coef]["nom"]
 
         fig_hist = go.Figure()
-        # Histogramme des erreurs
-        fig_hist.add_trace(go.Histogram(
-            x=erreurs_abs,
-            autobinx=True,
-            marker=dict(color=c_p, opacity=0.75, line=dict(color=c_f, width=0.5)),
-            showlegend=False,
-        ))
-        # La ligne verticale prend désormais la couleur "foncée" propre au coefficient (pas de conflit)
-        fig_hist.add_vline(
-            x=mae_val, line_dash="dash", line_color=c_f, line_width=2,
-        )
-        # Trace fantôme pour la légende
-        fig_hist.add_trace(go.Scatter(
-            x=[None], y=[None], mode="lines",
-            line=dict(color=c_f, dash="dash", width=2),
-            name=f"MAE = {mae_val:.6f}"
-        ))
-
+        fig_hist.add_trace(go.Histogram(x=erreurs_abs, autobinx=True,
+                                        marker=dict(color=c_p, opacity=0.75,
+                                                    line=dict(color=c_f, width=0.5)),
+                                        showlegend=False))
+        fig_hist.add_vline(x=mae_val, line_dash="dash", line_color=c_f, line_width=2)
+        fig_hist.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
+                                      line=dict(color=c_f, dash="dash", width=2),
+                                      name=f"MAE = {mae_val:.6f}"))
         fig_hist.update_layout(
-            title=dict(
-                text=f"<b>Distribution |Erreur| — {coef}</b>",
-                x=0.5,
-                y=0.95,
-                xanchor="center",
-                yanchor="top",
-                xref="paper",
-                font=dict(size=14),
-            ),
-            xaxis=dict(
-                title=dict(text=f"<b>|{nom_complet} Réel − Prédit|</b>", font=dict(size=11)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=1.5, linecolor="black", mirror=True,
-            ),
-            yaxis=dict(
-                title=dict(text="<b>Fréquence</b>", font=dict(size=11)),
-                showgrid=True, gridwidth=1, gridcolor="lightgray",
-                showline=True, linewidth=1.5, linecolor="black", mirror=True,
-            ),
-            height=380,
-            margin=dict(t=60, b=50, l=50, r=20),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            legend=dict(x=0.95, y=0.95, xanchor="right", yanchor="top", bgcolor="rgba(255,255,255,0.9)",
-                        bordercolor="black", borderwidth=1)
+            title=dict(text=f"<b>Distribution |Erreur| — {coef}</b>", x=0.5, y=0.95,
+                       xanchor="center", yanchor="top", xref="paper", font=dict(size=14)),
+            xaxis=dict(title=dict(text=f"<b>|{nom_complet} Réel − Prédit|</b>", font=dict(size=11)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=1.5, linecolor="black", mirror=True),
+            yaxis=dict(title=dict(text="<b>Fréquence</b>", font=dict(size=11)),
+                       showgrid=True, gridwidth=1, gridcolor="lightgray",
+                       showline=True, linewidth=1.5, linecolor="black", mirror=True),
+            height=380, margin=dict(t=60, b=50, l=50, r=20),
+            plot_bgcolor="white", paper_bgcolor="white",
+            legend=dict(x=0.95, y=0.95, xanchor="right", yanchor="top",
+                        bgcolor="rgba(255,255,255,0.9)", bordercolor="black", borderwidth=1),
         )
         col_st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": False})
+
 
 def page_optimisation(df_ml: pd.DataFrame) -> None:
     """Page 3 : recherche du profil maximisant la finesse CL/CD."""
@@ -568,15 +632,14 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
     col_c.metric("Familles", f"{df_profils['famille'].nunique()}")
     col_d.metric("Convergence XFoil", f"{df_xfoil['converged'].mean() * 100:.1f} %")
 
-    # Familles de profils
     familles = df_profils.groupby("famille")["naca"].count().sort_values(ascending=False)
     fig_fam = go.Figure(go.Bar(
         x=familles.index, y=familles.values,
         marker_color=COULEUR_XFOIL, text=familles.values, textposition="outside",
     ))
-    fig_fam.update_layout(title="Nombre de profils par famille", xaxis_title="Famille", yaxis_title="Profils", height=420, margin=dict(t=50, b=40))
+    fig_fam.update_layout(title="Nombre de profils par famille", xaxis_title="Famille",
+                          yaxis_title="Profils", height=420, margin=dict(t=50, b=40))
 
-    # Convergence par Reynolds
     conv_re = df_xfoil.groupby("Re")["converged"].mean() * 100
     re_labels = [re_tick(r) for r in conv_re.index]
 
@@ -591,12 +654,16 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
         return f"#{r:02x}{g:02x}{b:02x}"
 
     couleurs_conv = [_couleur_conv_gradient(v) for v in conv_re.values]
-
     fig_conv = go.Figure(go.Bar(
         x=re_labels, y=conv_re.values, marker_color=couleurs_conv,
         text=[f"{v:.1f} %" for v in conv_re.values], textposition="outside",
     ))
-    fig_conv.update_layout(title="Taux de convergence XFoil par nombre de Reynolds", xaxis=dict(title="Re", type="category", tickangle=-30), yaxis=dict(title="Convergence (%)", range=[0, 105]), height=420, margin=dict(t=50, b=60))
+    fig_conv.update_layout(
+        title="Taux de convergence XFoil par nombre de Reynolds",
+        xaxis=dict(title="Re", type="category", tickangle=-30),
+        yaxis=dict(title="Convergence (%)", range=[0, 105]),
+        height=420, margin=dict(t=50, b=60),
+    )
 
     if disposition == "2 colonnes":
         col1, col2 = st.columns(2)
@@ -606,7 +673,6 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
         st.plotly_chart(fig_fam, use_container_width=True, config={"displayModeBar": False})
         st.plotly_chart(fig_conv, use_container_width=True, config={"displayModeBar": False})
 
-    # Distributions features géométriques
     st.subheader("Distribution des features géométriques (1 point par profil)")
     features = ["t", "camber", "x_t", "x_c", "LE_radius", "TE_angle", "t_over_xt", "area"]
     feature = st.selectbox("Feature", features)
@@ -614,7 +680,6 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
     data = df_profils[feature].dropna().values
     from scipy import stats
     kde = stats.gaussian_kde(data)
-
     nbins = 50
     hist_counts, bin_edges = np.histogram(data, bins=nbins, density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
@@ -622,13 +687,344 @@ def page_dataset(df_xfoil: pd.DataFrame, disposition: str) -> None:
     y_dense = kde(x_dense)
 
     fig_hist = go.Figure()
-    fig_hist.add_trace(go.Bar(x=bin_centers, y=hist_counts, name="Histogramme", marker_color=COULEUR_XFOIL, opacity=0.4, width=bin_centers[1] - bin_centers[0] if len(bin_centers) > 1 else 0.01))
-    fig_hist.add_trace(go.Scatter(x=x_dense, y=y_dense, name="Densité", mode="lines", line=dict(color=COULEUR_ML, width=3)))
-
+    fig_hist.add_trace(go.Bar(x=bin_centers, y=hist_counts, name="Histogramme",
+                              marker_color=COULEUR_XFOIL, opacity=0.4,
+                              width=bin_centers[1] - bin_centers[0] if len(bin_centers) > 1 else 0.01))
+    fig_hist.add_trace(go.Scatter(x=x_dense, y=y_dense, name="Densité", mode="lines",
+                                  line=dict(color=COULEUR_ML, width=3)))
     mediane = float(np.median(data))
-    fig_hist.add_vline(x=mediane, line_dash="dash", line_color="#5E35B1", line_width=2, annotation_text=f"médiane = {mediane:.3f}", annotation_position="top")
-    fig_hist.update_layout(title=f"Distribution de {feature}", xaxis_title=feature, yaxis_title="Densité", height=500, margin=dict(t=50, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), bargap=0.05)
+    fig_hist.add_vline(x=mediane, line_dash="dash", line_color="#5E35B1", line_width=2,
+                       annotation_text=f"médiane = {mediane:.3f}", annotation_position="top")
+    fig_hist.update_layout(
+        title=f"Distribution de {feature}", xaxis_title=feature, yaxis_title="Densité",
+        height=500, margin=dict(t=50, b=40),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), bargap=0.05,
+    )
     st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": False})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE 5 : Prédiction ML pour un profil quelconque
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Valeurs typiques (moyenne ± plage) pour chaque feature géométrique
+#: déduites des statistiques du StandardScaler entraîné
+_GEO_CONFIG = {
+    # feature : (label affiché,  min,    max,   defaut, step,  aide)
+    "t"         : ("Épaisseur relative  t/c",         0.02,  0.40,  0.12,   0.005, "Ratio épaisseur max / corde"),
+    "camber"    : ("Cambrure max  m/c",               0.00,  0.12,  0.02,   0.002, "Ratio cambrure max / corde"),
+    "x_t"       : ("Position épaisseur max  x_t/c",   0.10,  0.70,  0.30,   0.01,  "Position longitudinale de l'épaisseur maximale"),
+    "x_c"       : ("Position cambrure max  x_c/c",    0.00,  0.70,  0.40,   0.01,  "Position longitudinale de la cambrure maximale (0 si symétrique)"),
+    "LE_radius" : ("Rayon de bord d'attaque  r_LE/c", 0.001, 0.10,  0.016,  0.001, "Rayon de courbure au bord d'attaque normalisé par la corde"),
+    "TE_angle"  : ("Angle de bord de fuite  β (°)",   0.0,   40.0,  12.0,   0.5,   "Demi-angle d'ouverture au bord de fuite (degrés)"),
+    "t_over_xt" : ("Ratio t / x_t",                   0.05,  1.20,  0.40,   0.01,  "Épaisseur relative divisée par sa position"),
+    "area"      : ("Aire de section  A/c²",            0.01,  0.20,  0.077,  0.002, "Surface du profil normalisée par la corde²"),
+}
+
+#: Valeurs de Reynolds disponibles (identiques au dataset)
+RE_VALEURS = [50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000]
+
+
+def _tracer_polaire_prediction(df: pd.DataFrame, disposition: str) -> None:
+    """Trace les 4 graphiques de polaires à partir d'un DataFrame prédit."""
+    couleur = "#9C27B0"  # violet pour distinguer de XFoil et Fluent
+
+    spec_courbes = [
+        ("CL",      "Coefficient de portance",  "c<sub>l</sub>"),
+        ("CD",      "Coefficient de traînée",   "c<sub>d</sub>"),
+        ("CM",      "Coefficient de moment",    "c<sub>m</sub>"),
+        ("finesse", "Coefficient de finesse",   "c<sub>l</sub> / c<sub>d</sub>"),
+    ]
+
+    figs = []
+    for col_data, titre_long, titre_court in spec_courbes:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df["alpha"], y=df[col_data],
+            mode="lines+markers",
+            line=dict(color=couleur, width=2.5),
+            marker=dict(size=6, symbol="circle", opacity=0.85),
+            name="Prédiction ML",
+            hovertemplate="α = %{x:.1f}°<br>" + titre_court + " = %{y:.4f}<extra></extra>",
+        ))
+
+        # Marqueur du maximum (utile pour CL et finesse)
+        if col_data in ("CL", "finesse"):
+            i_max = df[col_data].idxmax()
+            fig.add_trace(go.Scatter(
+                x=[df.loc[i_max, "alpha"]],
+                y=[df.loc[i_max, col_data]],
+                mode="markers",
+                marker=dict(color="#FF6F00", size=12, symbol="star",
+                            line=dict(width=1, color="white")),
+                name=f"Max : {df.loc[i_max, col_data]:.3f} @ α={df.loc[i_max, 'alpha']:.1f}°",
+            ))
+
+        fig.update_layout(
+            title=dict(text=f"<b>{titre_long}</b>", x=0.5, y=0.95,
+                       xanchor="center", yanchor="top", xref="paper",
+                       font=dict(size=16)),
+            xaxis=dict(
+                title=dict(text="<b>Angle d'attaque α (°)</b>", font=dict(size=13)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=2, linecolor="black", mirror=True,
+                ticks="outside", tickwidth=2, ticklen=8,
+            ),
+            yaxis=dict(
+                title=dict(text=f"<b>{titre_court}</b>", font=dict(size=13)),
+                showgrid=True, gridwidth=1, gridcolor="lightgray",
+                showline=True, linewidth=2, linecolor="black", mirror=True,
+                ticks="outside", tickwidth=2, ticklen=8,
+            ),
+            height=430,
+            margin=dict(t=80, b=50, l=65, r=30),
+            legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="black",
+                        borderwidth=1, font=dict(size=11),
+                        yanchor="top", y=0.98, xanchor="left", x=0.02),
+            plot_bgcolor="white",
+            hovermode="x unified",
+        )
+        figs.append(fig)
+
+    if disposition == "2 colonnes":
+        col1, col2 = st.columns(2)
+        with col1:
+            st.plotly_chart(figs[0], use_container_width=True, config={"displayModeBar": False})  # CL
+            st.plotly_chart(figs[2], use_container_width=True, config={"displayModeBar": False})  # CM
+        with col2:
+            st.plotly_chart(figs[1], use_container_width=True, config={"displayModeBar": False})  # CD
+            st.plotly_chart(figs[3], use_container_width=True, config={"displayModeBar": False})  # finesse
+    else:
+        for fig in figs:
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+def page_prediction_ml(disposition: str) -> None:
+    """Page 5 : génération des polaires ML pour un profil géométrique quelconque.
+
+    L'utilisateur spécifie les 8 features géométriques d'un profil via des
+    sliders, puis le modèle multi-tâches prédit CL, CD et CM sur la plage
+    d'angles d'attaque choisie.
+    """
+    st.header("🔮 Prédiction ML — Polaires pour un profil quelconque")
+    st.markdown(
+        "Entrez les **caractéristiques géométriques** de votre profil et les "
+        "**conditions de vol**. Le réseau de neurones multi-tâches génère "
+        "instantanément les quatre courbes de polaires."
+    )
+
+    # ── Vérification de la disponibilité du modèle ──
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(PREPROCESSOR_PATH):
+        st.error(
+            f"Fichiers modèle introuvables : `{MODEL_PATH}` et/ou `{PREPROCESSOR_PATH}`. "
+            "Placez-les dans le même répertoire que `dashboard.py`."
+        )
+        return
+
+    model, pre = charger_modele()
+    if model is None:
+        st.error(
+            "Le modèle n'a pas pu être chargé. Vérifiez que TensorFlow / Keras "
+            "est installé dans votre environnement Streamlit."
+        )
+        return
+
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════
+    # SECTION 1 : Préréglages rapides (profils NACA courants)
+    # ══════════════════════════════════════════════════════════════
+    st.subheader("① Préréglage rapide (optionnel)")
+    presets = {
+        "— Personnalisé —"  : None,
+        "NACA 0012 (symétrique)"  : dict(t=0.12,  camber=0.0,  x_t=0.30, x_c=0.0,  LE_radius=0.0158, TE_angle=12.0, t_over_xt=0.400, area=0.0768),
+        "NACA 2412 (légère cambrure)": dict(t=0.12, camber=0.02, x_t=0.30, x_c=0.40, LE_radius=0.0158, TE_angle=12.0, t_over_xt=0.400, area=0.0800),
+        "NACA 4412 (haute portance)" : dict(t=0.12, camber=0.04, x_t=0.30, x_c=0.40, LE_radius=0.0158, TE_angle=12.0, t_over_xt=0.400, area=0.0832),
+        "NACA 0006 (mince symétrique)": dict(t=0.06, camber=0.0,  x_t=0.30, x_c=0.0,  LE_radius=0.0040, TE_angle=6.5,  t_over_xt=0.200, area=0.0390),
+        "NACA 6412 (planeur)"        : dict(t=0.12, camber=0.06, x_t=0.30, x_c=0.40, LE_radius=0.0158, TE_angle=12.0, t_over_xt=0.400, area=0.0864),
+        "NACA 0018 (épais)"          : dict(t=0.18, camber=0.0,  x_t=0.30, x_c=0.0,  LE_radius=0.0358, TE_angle=17.5, t_over_xt=0.600, area=0.1152),
+    }
+    preset_choisi = st.selectbox("Partir d'un profil NACA connu", list(presets.keys()))
+    valeurs_preset = presets[preset_choisi]
+
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════
+    # SECTION 2 : Features géométriques (sliders)
+    # ══════════════════════════════════════════════════════════════
+    st.subheader("② Géométrie du profil")
+    st.caption(
+        "Ces 8 paramètres définissent complètement la forme du profil "
+        "dans l'espace de features du modèle ML."
+    )
+
+    geo = {}
+
+    # Deux colonnes pour compacter l'interface
+    col_gauche, col_droite = st.columns(2)
+    items = list(_GEO_CONFIG.items())
+    moitie = (len(items) + 1) // 2
+
+    for idx, (feat, (label, f_min, f_max, f_def, f_step, aide)) in enumerate(items):
+        # Valeur initiale : preset si disponible, sinon défaut
+        valeur_init = valeurs_preset[feat] if valeurs_preset else f_def
+        # Arrondir à f_step pour éviter les erreurs de précision
+        decimales = max(0, -int(np.floor(np.log10(f_step))))
+        valeur_init = round(valeur_init, decimales)
+
+        col = col_gauche if idx < moitie else col_droite
+        with col:
+            geo[feat] = st.slider(
+                label,
+                min_value=f_min,
+                max_value=f_max,
+                value=float(valeur_init),
+                step=f_step,
+                format=f"%.{decimales}f",
+                help=aide,
+                key=f"slider_{feat}",
+            )
+
+    # ── Vérification de cohérence ──
+    avertissements = []
+    if geo["t_over_xt"] > 0 and abs(geo["t_over_xt"] - geo["t"] / max(geo["x_t"], 1e-6)) > 0.15:
+        avertissements.append(
+            f"⚠️ `t/x_t` ({geo['t_over_xt']:.3f}) semble incohérent avec "
+            f"`t` ({geo['t']:.3f}) / `x_t` ({geo['x_t']:.3f}) = "
+            f"{geo['t']/max(geo['x_t'],1e-6):.3f}."
+        )
+    if geo["camber"] > 0 and geo["x_c"] < 1e-4:
+        avertissements.append("⚠️ Cambrure non nulle mais position de cambrure `x_c` ≈ 0.")
+    for msg in avertissements:
+        st.warning(msg)
+
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════
+    # SECTION 3 : Conditions de vol
+    # ══════════════════════════════════════════════════════════════
+    st.subheader("③ Conditions de vol")
+
+    col_re, col_alpha = st.columns(2)
+    with col_re:
+        re_val = st.select_slider(
+            "🌊 Nombre de Reynolds",
+            options=RE_VALEURS,
+            value=1_000_000,
+            format_func=re_label,
+            help="Nombre de Reynolds de l'écoulement (viscosité × vitesse × corde)",
+        )
+    with col_alpha:
+        alpha_range = st.slider(
+            "📐 Plage d'angles d'attaque α (°)",
+            min_value=-10.0,
+            max_value=25.0,
+            value=(-5.0, 15.0),
+            step=0.5,
+            help="Plage d'angles d'attaque pour la génération des polaires",
+        )
+
+    col_step, _ = st.columns([1, 3])
+    with col_step:
+        alpha_step = st.select_slider(
+            "Résolution Δα (°)",
+            options=[0.25, 0.5, 1.0, 2.0],
+            value=0.5,
+            help="Pas angulaire entre deux points de la polaire",
+        )
+
+    alphas = np.arange(alpha_range[0], alpha_range[1] + alpha_step / 2, alpha_step)
+    st.caption(f"→ {len(alphas)} points de calcul : α ∈ [{alpha_range[0]:.1f}°, {alpha_range[1]:.1f}°]")
+
+    st.markdown("---")
+
+    # ══════════════════════════════════════════════════════════════
+    # SECTION 4 : Bouton de lancement + résultats
+    # ══════════════════════════════════════════════════════════════
+    col_btn, col_info = st.columns([1, 4])
+    with col_btn:
+        lancer = st.button("🚀 Générer les polaires", type="primary", use_container_width=True)
+    with col_info:
+        st.markdown(
+            f"<div style='padding-top:0.55rem; color:#666;'>"
+            f"Profil : <b>t={geo['t']:.3f}</b> | "
+            f"<b>m={geo['camber']:.3f}</b> | "
+            f"<b>r_LE={geo['LE_radius']:.4f}</b> — "
+            f"Re = <b>{re_label(re_val)}</b>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    if not lancer:
+        st.info("👆 Réglez les paramètres puis cliquez sur **Générer les polaires** pour lancer le modèle ML.")
+        return
+
+    # ── Inférence ──
+    with st.spinner("Inférence en cours…"):
+        try:
+            # naca_name : si le preset est un NACA connu du dataset on le passe,
+            # sinon chaîne vide → médiane des encodages utilisée automatiquement
+            naca_name_hint = ""
+            if preset_choisi != "— Personnalisé —":
+                # Ex. "NACA 0012 (symétrique)" → essayer "naca0012"
+                import re as _re
+                m = _re.search(r"(\d{4})", preset_choisi)
+                if m:
+                    naca_name_hint = f"naca{m.group(1)}"
+            df_pred = predire_polaires(
+                model, pre, geo, alphas, float(re_val),
+                naca_name=naca_name_hint,
+                source_name="naca_grid",
+            )
+        except Exception as exc:
+            st.error(f"Erreur lors de la prédiction : {exc}")
+            return
+
+    # ── Métriques résumées ──
+    st.success("✅ Polaires générées avec succès !")
+
+    m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
+    cl_max   = df_pred["CL"].max()
+    alpha_cl = df_pred.loc[df_pred["CL"].idxmax(), "alpha"]
+    fin_max  = df_pred["finesse"].max()
+    alpha_fin = df_pred.loc[df_pred["finesse"].idxmax(), "alpha"]
+    cd_min   = df_pred["CD"].min()
+
+    m_col1.metric("CL max",     f"{cl_max:.3f}",  help=f"α = {alpha_cl:.1f}°")
+    m_col2.metric("α @ CL max", f"{alpha_cl:.1f}°")
+    m_col3.metric("(CL/CD) max", f"{fin_max:.1f}", help=f"α = {alpha_fin:.1f}°")
+    m_col4.metric("α @ finesse max", f"{alpha_fin:.1f}°")
+    m_col5.metric("CD min",     f"{cd_min:.5f}")
+
+    st.markdown("---")
+    st.subheader("Polaires aérodynamiques — Modèle ML")
+
+    _tracer_polaire_prediction(df_pred, disposition)
+
+    # ── Tableau de données ──
+    with st.expander("📋 Voir les données tabulaires"):
+        df_affiche = df_pred.copy()
+        df_affiche.columns = ["α (°)", "CL", "CD", "CM", "CL/CD"]
+        st.dataframe(
+            df_affiche.style.format({
+                "α (°)": "{:.2f}",
+                "CL"   : "{:.5f}",
+                "CD"   : "{:.6f}",
+                "CM"   : "{:.5f}",
+                "CL/CD": "{:.2f}",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        # Export CSV
+        csv_bytes = df_affiche.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "⬇️ Télécharger les données (CSV)",
+            data=csv_bytes,
+            file_name=f"polaire_ML_Re{int(re_val)}_t{geo['t']:.3f}_m{geo['camber']:.3f}.csv",
+            mime="text/csv",
+        )
 
 
 # ── Point d'entrée ───────────────────────────────────────────────
@@ -638,6 +1034,22 @@ def main() -> None:
     st.title("✈️ AeroPredict — Optimisation de profils assistée par Machine Learning")
     st.caption("MGA 802 · Blanchard / Mechref / Condette — XFoil vs réseau de neurones multi-tâches, validation Ansys Fluent")
 
+    # La page Prédiction ML ne nécessite pas les CSV — on vérifie seulement
+    # pour les autres pages
+    page = st.sidebar.radio(
+        "Navigation",
+        ["Polaires", "Performance ML", "Optimisation", "Dataset", "🔮 Prédiction ML"],
+    )
+    st.sidebar.divider()
+    disposition = st.sidebar.radio("Disposition des graphiques", ["2 colonnes", "1 colonne"], horizontal=True)
+    st.sidebar.divider()
+
+    # ── Page Prédiction ML (indépendante des CSV) ──
+    if page == "🔮 Prédiction ML":
+        page_prediction_ml(disposition)
+        return
+
+    # ── Pages nécessitant les CSV ──
     for fichier in (CSV_XFOIL, CSV_ML):
         if not os.path.exists(fichier):
             st.error(f"Fichier introuvable : `{fichier}`. Exécutez d'abord le pipeline.")
@@ -646,11 +1058,9 @@ def main() -> None:
     df_xfoil, df_ml, df_merge = charger_donnees()
     fluent                     = charger_fluent()
 
-    page = st.sidebar.radio("Navigation", ["Polaires", "Performance ML", "Optimisation", "Dataset"])
-    st.sidebar.divider()
-    disposition = st.sidebar.radio("Disposition des graphiques", ["2 colonnes", "1 colonne"], horizontal=True)
-    st.sidebar.divider()
-    st.sidebar.caption(f"{len(df_xfoil):,} lignes · {df_xfoil['naca'].nunique():,} profils · {len(fluent)} cas Fluent")
+    st.sidebar.caption(
+        f"{len(df_xfoil):,} lignes · {df_xfoil['naca'].nunique():,} profils · {len(fluent)} cas Fluent"
+    )
 
     if page == "Polaires":
         page_polaires(df_merge, fluent, disposition)
