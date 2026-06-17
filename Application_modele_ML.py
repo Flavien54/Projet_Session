@@ -1,60 +1,130 @@
+"""
+Application du modèle ML entraîné sur le dataset complet.
+
+MGA 802 · AeroPredict
+
+Ce script charge le modèle TensorFlow entraîné et le préprocesseur,
+puis applique le modèle à l'ensemble du dataset pour prédire les
+coefficients aérodynamiques CL, CD et CM.
+
+Le traitement est effectué par lots pour gérer de grands volumes
+de données avec un suivi d'avancement en temps réel.
+
+Usage:
+    python Application_modele_ML.py
+"""
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 import pickle
 import os
 import time
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. REDÉFINITION DE LA CLASSE (Obligatoire pour que pickle puisse lire l'objet)
+# 1. REDÉFINITION DE LA CLASSE STRICTEMENT IDENTIQUE À L'ENTRAÎNEMENT
 # ─────────────────────────────────────────────────────────────────────────────
 class NACAAeroPreprocessor:
-    CATEGORICAL_COLS = ["naca", "source"]
-    CONTINUOUS_COLS = ["t", "camber", "x_t", "x_c", "LE_radius", "TE_angle", "t_over_xt", "area", "alpha", "Re"]
+    """
+    Préprocesseur pour les données aérodynamiques NACA.
+
+    Cette classe doit correspondre exactement à l'objet sauvegardé
+    dans preprocessor.pkl lors de l'entraînement. Elle gère la
+    normalisation des features et des targets.
+
+    :cvar GEOMETRIC_COLS: Noms des colonnes géométriques.
+    :vartype GEOMETRIC_COLS: list
+    :cvar AERO_COLS: Noms des colonnes aérodynamiques (conditions de vol).
+    :vartype AERO_COLS: list
+    :cvar TARGET_COLS: Noms des colonnes cibles (coefficients à prédire).
+    :vartype TARGET_COLS: list
+
+    :ivar feature_scaler: Scaler pour les features d'entrée.
+    :vartype feature_scaler: sklearn.preprocessing.StandardScaler
+    :ivar target_scalers: Scalers pour chaque cible (CL, CD, CM).
+    :vartype target_scalers: dict
+    :ivar is_fitted: Indique si le préprocesseur a été ajusté.
+    :vartype is_fitted: bool
+    """
+
+    GEOMETRIC_COLS = ["t", "camber", "x_t", "x_c", "LE_radius", "TE_angle", "t_over_xt", "area"]
+    AERO_COLS = ["alpha", "Re"]
     TARGET_COLS = ["CL", "CD", "CM"]
 
     def __init__(self):
-        self.label_encoders = {col: LabelEncoder() for col in self.CATEGORICAL_COLS}
+        """Initialise le préprocesseur avec des scalers non ajustés."""
         self.feature_scaler = StandardScaler()
         self.target_scalers = {col: StandardScaler() for col in self.TARGET_COLS}
         self.is_fitted = False
 
+    @property
+    def input_cols(self) -> list:
+        """
+        Retourne la liste des colonnes d'entrée (géométrie + aéro).
+
+        :return: Liste des noms de colonnes d'entrée.
+        :rtype: list
+        """
+        return self.GEOMETRIC_COLS + self.AERO_COLS
+
     def fit_transform(self, df: pd.DataFrame):
-        X = self._encode_features(df, fit=True)
+        """
+        Ajuste les scalers sur les données et transforme les features et targets.
+
+        :param df: DataFrame contenant les colonnes d'entrée et les cibles.
+        :type df: pandas.DataFrame
+        :return: Tuple (X_scaled, y_dict) où X_scaled est la matrice des
+                 features normalisées et y_dict un dictionnaire des targets normalisées.
+        :rtype: tuple
+        """
+        X_raw = df[self.input_cols].values.astype(np.float32)
+        X_scaled = self.feature_scaler.fit_transform(X_raw)
         y_dict = {}
         for col in self.TARGET_COLS:
             y_dict[col] = self.target_scalers[col].fit_transform(df[[col]].values).astype(np.float32)
         self.is_fitted = True
-        return X, y_dict
+        return X_scaled, y_dict
 
-    def transform(self, df: pd.DataFrame):
+    def transform(self, df: pd.DataFrame) -> np.ndarray:
+        """
+        Transforme les features d'entrée en utilisant le scaler ajusté.
+
+        :param df: DataFrame contenant les colonnes d'entrée.
+        :type df: pandas.DataFrame
+        :return: Matrice des features normalisées.
+        :rtype: numpy.ndarray
+        :raises AssertionError: Si le préprocesseur n'a pas été ajusté.
+        """
         assert self.is_fitted, "Le préprocesseur doit d'abord être ajusté (fit)."
-        return self._encode_features(df, fit=False)
+        X_raw = df[self.input_cols].values.astype(np.float32)
+        return self.feature_scaler.transform(X_raw).astype(np.float32)
 
     def inverse_transform_target(self, y_scaled: np.ndarray, col: str) -> np.ndarray:
+        """
+        Transforme les prédictions normalisées vers les valeurs physiques.
+
+        :param y_scaled: Valeurs normalisées à inverser.
+        :type y_scaled: numpy.ndarray
+        :param col: Nom de la cible ("CL", "CD" ou "CM").
+        :type col: str
+        :return: Valeurs physiques inversées.
+        :rtype: numpy.ndarray
+        """
         return self.target_scalers[col].inverse_transform(y_scaled)
-
-    def _encode_features(self, df: pd.DataFrame, fit: bool) -> np.ndarray:
-        encoded_parts = []
-        for col in self.CATEGORICAL_COLS:
-            if fit:
-                enc = self.label_encoders[col].fit_transform(df[col].astype(str)).reshape(-1, 1)
-            else:
-                known = set(self.label_encoders[col].classes_)
-                safe = df[col].astype(str).map(lambda x: x if x in known else self.label_encoders[col].classes_[0])
-                enc = self.label_encoders[col].transform(safe).reshape(-1, 1)
-            encoded_parts.append(enc.astype(np.float32))
-
-        cont = df[self.CONTINUOUS_COLS].values.astype(np.float32)
-        cont_scaled = self.feature_scaler.fit_transform(cont) if fit else self.feature_scaler.transform(cont)
-        encoded_parts.append(cont_scaled)
-        return np.hstack(encoded_parts).astype(np.float32)
 
     @property
     def input_dim(self) -> int:
-        return len(self.CATEGORICAL_COLS) + len(self.CONTINUOUS_COLS)
+        """
+        Retourne la dimension de l'espace d'entrée.
+
+        :return: Nombre de features d'entrée.
+        :rtype: int
+        """
+        return len(self.input_cols)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. SCRIPT DE PRÉDICTION PROGRESSIVE AVEC SUIVI D'AVANCEMENT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +141,8 @@ if __name__ == "__main__":
 
     print("[CHARGEMENT] Modèle, préprocesseur et BDD source...")
     t0_load = time.time()
+
+    # Chargement du préprocesseur original via pickle
     with open("preprocessor.pkl", "rb") as f:
         preprocessor = pickle.load(f)
 
@@ -111,7 +183,7 @@ if __name__ == "__main__":
         # Extraction du bloc courant
         df_batch = df.iloc[start_idx:end_idx]
 
-        # Encodage et normalisation des features du bloc
+        # Encodage et normalisation des features du bloc (Uniquement géométrie et physique)
         X_batch_scaled = preprocessor.transform(df_batch)
 
         # Inférence via le réseau de neurones (multitâche)
