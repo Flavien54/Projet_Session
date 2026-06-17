@@ -55,6 +55,19 @@ class DatasetBuilder:
     ----------------------
     Eppler (e), Wortmann FX (fx), NREL S (s), AG (ag),
     MH (mh), HQ (hq), Selig-Donovan (sd), Clark Y, Göttingen (goe)
+
+    :cvar ALPHA_RANGE: Plage des angles d'attaque (degrés).
+    :vartype ALPHA_RANGE: numpy.ndarray
+    :cvar RE_RANGE: Plage des nombres de Reynolds.
+    :vartype RE_RANGE: list
+    :cvar M_RANGE: Valeurs de cambrure max pour les profils NACA.
+    :vartype M_RANGE: list
+    :cvar P_RANGE: Valeurs de position de cambrure pour les profils NACA.
+    :vartype P_RANGE: list
+    :cvar T_RANGE: Valeurs d'épaisseur relative pour les profils NACA.
+    :vartype T_RANGE: list
+    :cvar UIUC_FAMILIES: Familles de profils UIUC à inclure.
+    :vartype UIUC_FAMILIES: list
     """
 
     # ── Plages de conditions de vol ─────────────────────────────────
@@ -74,6 +87,14 @@ class DatasetBuilder:
         output_path : str = "dataset.csv",
         max_profils : int = None,
     ):
+        """
+        Initialise le constructeur de dataset.
+
+        :param output_path: Chemin du fichier CSV de sortie.
+        :type output_path: str
+        :param max_profils: Nombre maximum de profils à générer (None pour tout).
+        :type max_profils: int, optional
+        """
         self.output_path = output_path
         self.max_profils = max_profils
 
@@ -86,6 +107,9 @@ class DatasetBuilder:
         Retourne la liste des profils NACA 4 chiffres.
         Les profils m=0 sont symétriques quelle que soit p →
         on n'en garde qu'un seul (p fixé à p_range[0]).
+
+        :return: Liste des dictionnaires contenant le nom et la source des profils NACA.
+        :rtype: list
         """
         profiles = []
 
@@ -107,6 +131,9 @@ class DatasetBuilder:
         """
         Retourne les profils UIUC disponibles dans AeroSandbox,
         filtrés par famille, hors profils NACA.
+
+        :return: Liste des dictionnaires contenant le nom et la source des profils UIUC.
+        :rtype: list
         """
         pkg_path  = pathlib.Path(asb.__file__).parent
         dat_files = pkg_path.rglob("*.dat")
@@ -127,7 +154,12 @@ class DatasetBuilder:
         return selected
 
     def _all_profiles(self) -> list:
-        """Fusionne NACA + UIUC et applique la limite max_profils."""
+        """
+        Fusionne NACA + UIUC et applique la limite max_profils.
+
+        :return: Liste complète des profils à générer.
+        :rtype: list
+        """
         naca  = self._naca_profiles()
         uiuc  = self._uiuc_profiles()
         all_p = naca + uiuc
@@ -167,6 +199,12 @@ class DatasetBuilder:
             TE_angle    angle de bord de fuite
             t_over_xt   rapport t / x_t
             area        aire de la section transversale
+
+        :param name: Nom du profil à analyser.
+        :type name: str
+        :return: Dictionnaire des 8 features géométriques.
+        :rtype: dict
+        :raises Exception: Si le profil ne peut pas être chargé par AeroSandbox.
         """
         af = asb.Airfoil(name)
 
@@ -228,7 +266,10 @@ class DatasetBuilder:
         Génère toutes les combinaisons (alpha × Re) pour un profil,
         avec ses 8 features géométriques.
 
-        Retourne un DataFrame de 300 lignes (60 α × 5 Re) ou None.
+        :param meta: Dictionnaire contenant le nom et la source du profil.
+        :type meta: dict
+        :return: DataFrame de 300 lignes (60 α × 5 Re) ou None en cas d'erreur.
+        :rtype: pandas.DataFrame or None
         """
         name   = meta["name"]
         source = meta["source"]
@@ -273,6 +314,9 @@ class DatasetBuilder:
         """
         Construit le dataset complet et sauvegarde progressivement.
         Reprise automatique si le CSV existe déjà.
+
+        :return: DataFrame complet du dataset construit.
+        :rtype: pandas.DataFrame
         """
         print("=" * 60)
         print("  DatasetBuilder — AeroPredict")
@@ -335,6 +379,18 @@ class DatasetBuilder:
 
     @staticmethod
     def _summary(df: pd.DataFrame, n_ok: int, n_err: int, elapsed: float):
+        """
+        Affiche un résumé statistique du dataset construit.
+
+        :param df: DataFrame du dataset final.
+        :type df: pandas.DataFrame
+        :param n_ok: Nombre de profils générés avec succès.
+        :type n_ok: int
+        :param n_err: Nombre de profils en erreur.
+        :type n_err: int
+        :param elapsed: Temps total d'exécution en secondes.
+        :type elapsed: float
+        """
         print(f"\n{'=' * 60}")
         print(f"  Dataset construit")
         print(f"{'=' * 60}")
