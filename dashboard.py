@@ -111,25 +111,26 @@ def charger_donnees():
 
 @st.cache_data
 def charger_fluent():
-    """Charge les données de référence Fluent et corrige les incohérences de colonnes du CSV."""
+    """Charge les données de référence Fluent avec correction sélective par profil."""
     donnees = {}
     fichier_bruite = "data9profils_fluent.csv"
     
     if os.path.exists(fichier_bruite):
         df_flu = pd.read_csv(fichier_bruite)
+        df_flu = df_flu.rename(columns={"alpha": "alpha_deg"})
         
-        # On regroupe les données par profil et par Reynolds pour remplir le dictionnaire
         for (profil, re_val), sous_df in df_flu.groupby(["naca", "Re"]):
             df_clean = sous_df.copy()
-            df_clean = df_clean.rename(columns={"alpha": "alpha_deg"})
             
-            # Correction des colonnes inversées dans ton CSV selon le groupe de profils
+            # Profils dont les colonnes sont dans l'ordre : LD, CL, CD, CM
             if profil in ["naca0106", "goe101", "supermarine371ii"]:
                 df_clean = df_clean.rename(columns={
+                    "LD": "LD",
                     "CFD_CL": "CL",
                     "CFD_CD": "CD",
                     "CFD_CM": "CM"
                 })
+            # Profils dont les colonnes sont dans l'ordre : CL, CD, CM, LD
             else:
                 df_clean = df_clean.rename(columns={
                     "LD": "CL",
@@ -141,7 +142,6 @@ def charger_fluent():
             donnees[(profil, float(re_val))] = df_clean
             
     return donnees
-
 
 @st.cache_resource(show_spinner="Chargement du modèle ML…")
 def charger_modele():
@@ -225,53 +225,50 @@ def predire_polaires(
     alphas: np.ndarray,
     re_val: float,
     naca_name: str = "",
-    source_name: str = "naca_grid",
+    source_name: str = "airfoil_tools",
 ) -> pd.DataFrame:
-    """Prédit CL, CD, CM pour un vecteur d'angles d'attaque."""
+    """Prédit CL, CD, CM de manière robuste, sans deviner l'ordre des colonnes."""
     le = pre.__dict__["label_encoders"]
     fs = pre.__dict__["feature_scaler"]
     ts = pre.__dict__["target_scalers"]
 
+    # 1. Recherche intelligente du nom (gère les anciens profils_dat/ et les nouveaux)
     n_naca = float(len(le["naca"].classes_))
-    try:
-        naca_idx = float(le["naca"].transform([naca_name])[0])
-    except Exception:
-        naca_idx = n_naca / 2.0
+    nom_recherche = str(naca_name).lower().replace("_", "").replace("-", "").replace(".dat", "")
+    
+    naca_match = le["naca"].classes_[0] # Sécurité par défaut
+    for c in le["naca"].classes_:
+        c_clean = str(c).lower().replace("_", "").replace("-", "").replace("profils_dat", "").replace("\\", "").replace("/", "").replace(".dat", "")
+        if nom_recherche in c_clean or c_clean in nom_recherche:
+            naca_match = c
+            break
+            
+    naca_idx = float(le["naca"].transform([naca_match])[0])
     naca_norm = naca_idx / n_naca
 
-    try:
-        source_idx = float(le["source"].transform([source_name])[0])
-    except Exception:
-        source_idx = 0.0
+    # 2. Assignation de la source
+    source_match = le["source"].classes_[0]
+    for s in le["source"].classes_:
+        if "airfoil" in str(s).lower():
+            source_match = s
+            break
+            
+    source_idx = float(le["source"].transform([source_match])[0])
     source_norm = source_idx
 
+    # 3. Mise à l'échelle des variables numériques
     rows = [[geo[f] for f in FEATURES_ORDRE] + [alpha, re_val] for alpha in alphas]
     X_raw    = np.array(rows, dtype=np.float64)
     X_scaled = fs.transform(X_raw)
 
-    CACHE_KEY = "_predire_ordre_features"
-
-    if CACHE_KEY not in st.session_state:
-        idx_test   = np.argmin(np.abs(alphas - 5.0))
-        X_test_sc  = X_scaled[idx_test : idx_test + 1]
-        ordre_retenu = None
-        for ordre in range(4):
-            try:
-                X_test = _construire_X(X_test_sc, naca_norm, source_norm, ordre)
-                pred_test = model.predict(X_test, verbose=0)
-                res_test  = _decoder_preds(pred_test, ts)
-                if _valider_physique(res_test, alphas[idx_test]):
-                    ordre_retenu = ordre
-                    break
-            except Exception:
-                continue
-        if ordre_retenu is None:
-            ordre_retenu = 0
-        st.session_state[CACHE_KEY] = ordre_retenu
-
-    ordre_final = st.session_state[CACHE_KEY]
-
-    X_full    = _construire_X(X_scaled, naca_norm, source_norm, ordre_final)
+    # 4. Ordre STRICT des colonnes : [Naca, Source, Features numériques]
+    # On ne "devine" plus au hasard : c'est l'ordre standard de Keras et de tes CSV
+    n_samples = len(X_scaled)
+    nc = np.full((n_samples, 1), naca_norm, dtype=np.float32)
+    sc = np.full((n_samples, 1), source_norm, dtype=np.float32)
+    X_full = np.concatenate([nc, sc, X_scaled], axis=1).astype(np.float32)
+    
+    # 5. Prédiction et décodage
     preds_raw = model.predict(X_full, verbose=0)
     results   = _decoder_preds(preds_raw, ts)
 
@@ -1408,16 +1405,15 @@ def page_prediction_ml(disposition: str, fluent: dict) -> None:
     # TON CODE ML ORIGINAL INTACT :
     with st.spinner("Inférence en cours..."):
         try:
+            # On isole uniquement le nom propre avant l'espace (ex: "MH_45 (Aile volante)" -> "MH_45")
             naca_name_hint = ""
             if preset_choisi != "— Personnalisé —":
-                import re as _re
-                m = _re.search(r"(\d{4})", preset_choisi)
-                if m:
-                    naca_name_hint = f"naca{m.group(1)}"
+                naca_name_hint = preset_choisi.split(" ")[0]
+
             df_pred = predire_polaires(
                 model, pre, geo, alphas, float(re_val),
                 naca_name=naca_name_hint,
-                source_name="naca_grid",
+                source_name="airfoil_tools",
             )
         except Exception as exc:
             st.error(f"Erreur lors de la prédiction : {exc}")
