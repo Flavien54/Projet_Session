@@ -5,6 +5,7 @@ Projet_Session
    :maxdepth: 4
 
    audit_dataset
+   calcul_Xfoil
    dashboard
    data_profils
    main

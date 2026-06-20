@@ -1,0 +1,561 @@
+"""Module de génération et d'enrichissement de dataset via XFoil.
+
+MGA 802 · AeroPredict
+
+Ce script lit un dataset géométrique existant, exécute des analyses
+aérodynamiques couplées en parallèle à l'aide de XFoil (via AeroSandbox),
+gère les non-convergences par une cascade de stratégies (batch, segments, point par point)
+et produit un dataset final enrichi des coefficients aérodynamiques (CL, CD, CM).
+
+Usage:
+    python calcul_Xfoil.py
+"""
+
+import multiprocessing
+import time
+import warnings
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import aerosandbox as asb
+import numpy as np
+import pandas as pd
+
+# ═══════════════════════════════════════
+# CONFIGURATION GLOBALE
+# ═══════════════════════════════════════
+
+#: Chemin vers le fichier CSV contenant les caractéristiques géométriques de base
+INPUT_DATASET: str = "dataset_profil.csv"
+
+#: Chemin vers le fichier CSV de sortie enrichi par XFoil
+OUTPUT_DATASET: str = "dataset_aeroXfoil.csv"
+
+#: Chemin absolu vers l'exécutable XFoil sur le système
+XFOIL_PATH: str = r"C:\Xfoil\xfoil.exe"
+
+#: Bornes physiques pour le coefficient de portance (CL) afin d'éliminer les artefacts
+CL_BOUNDS: Tuple[float, float] = (-2.5, 3.5)
+
+#: Bornes physiques pour le coefficient de traînée (CD) afin d'éliminer les artefacts
+CD_BOUNDS: Tuple[float, float] = (1e-5, 0.5)
+
+#: Bornes physiques pour le coefficient de moment (CM) afin d'éliminer les artefacts
+CM_BOUNDS: Tuple[float, float] = (-1.0, 1.0)
+
+#: Limite maximale absolue de la finesse aérodynamique (L/D) autorisée
+LD_MAX: float = 300.0
+
+#: Dictionnaire associant le nombre de Reynolds à un timeout d'exécution (en secondes)
+TIMEOUT_MAP: Dict[float, int] = {
+    5e4: 20,   # Bas Re : non-convergence fréquente, abandon rapide
+    1e5: 30,
+    5e5: 60,
+    1e6: 90,
+    5e6: 120,
+}
+
+#: Valeur par défaut du timeout si le Reynolds n'est pas répertorié
+TIMEOUT_DEFAULT: int = 60
+
+#: Dictionnaire associant le nombre de Reynolds au nombre maximum d'itérations XFoil
+ITER_MAP: Dict[float, int] = {
+    5e4: 40,
+    1e5: 60,
+    5e5: 100,
+    1e6: 100,
+    5e6: 100,
+}
+
+#: Valeur par défaut du nombre maximal d'itérations XFoil
+ITER_DEFAULT: int = 100
+
+
+# ═══════════════════════════════════════════════════════════════════
+# FONCTIONS UTILITAIRES (HELPERS)
+# ═══════════════════════════════════════════════════════════════════
+
+def _run_xfoil(
+    airfoil: asb.Airfoil,
+    re_val: float,
+    alphas: np.ndarray,
+    max_iter: int,
+    timeout: int
+) -> Dict[float, Tuple[float, float, float]]:
+    """Exécute l'analyse XFoil sur une séquence optimisée d'angles d'attaque.
+
+    La séquence est réordonnée pour maximiser la convergence (0 → +max puis 0 → -min).
+    Les avertissements de timeout internes d'AeroSandbox sont ignorés car capturés
+    par la logique globale.
+
+    :param airfoil: Instance de profil aérodynamique AeroSandbox.
+    :type airfoil: asb.Airfoil
+    :param re_val: Nombre de Reynolds de l'écoulement.
+    :type re_val: float
+    :param alphas: Tableau numpy des angles d'attaque à évaluer.
+    :type alphas: np.ndarray
+    :param max_iter: Nombre maximal d'itérations XFoil par point.
+    :type max_iter: int
+    :param timeout: Temps limite alloué à l'analyse complète de la séquence.
+    :type timeout: int
+    :return: Dictionnaire associant l'angle d'attaque arrondi à son triplet
+        de coefficients valides : ``{alpha_arrondi: (CL, CD, CM)}``.
+    :rtype: dict
+    """
+    xf = asb.XFoil(
+        airfoil=airfoil,
+        Re=re_val,
+        xtr_upper=1.0,
+        xtr_lower=1.0,
+        max_iter=max_iter,
+        timeout=timeout,
+        xfoil_command=XFOIL_PATH,
+    )
+
+    zero_idx = int(np.argmin(np.abs(alphas)))
+    seq = np.concatenate([alphas[zero_idx:], alphas[:zero_idx][::-1]])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        aero = xf.alpha(seq)
+
+    a_out = np.array(aero["alpha"], dtype=float)
+    CL_out = np.array(aero["CL"], dtype=float)
+    CD_out = np.array(aero["CD"], dtype=float)
+    CM_out = np.array(aero["CM"], dtype=float)
+
+    mask = np.isfinite(CL_out) & np.isfinite(CD_out) & np.isfinite(CM_out)
+
+    result = {}
+    for a, cl, cd, cm, ok in zip(a_out, CL_out, CD_out, CM_out, mask):
+        if ok:
+            result[round(float(a), 2)] = (float(cl), float(cd), float(cm))
+    return result
+
+
+def _is_physical(cl: float, cd: float, cm: float) -> bool:
+    """Vérifie si les coefficients aérodynamiques respectent les enveloppes physiques.
+
+    :param cl: Coefficient de portance.
+    :type cl: float
+    :param cd: Coefficient de traînée.
+    :type cd: float
+    :param cm: Coefficient de moment de tangage.
+    :type cm: float
+    :return: True si toutes les valeurs sont réalistes, False sinon.
+    :rtype: bool
+    """
+    return (
+        CL_BOUNDS[0] <= cl <= CL_BOUNDS[1] and
+        CD_BOUNDS[0] <= cd <= CD_BOUNDS[1] and
+        CM_BOUNDS[0] <= cm <= CM_BOUNDS[1]
+    )
+
+
+def _sanitize_map(
+    alpha_map: Dict[float, Tuple[float, float, float]]
+) -> Dict[float, Tuple[float, float, float]]:
+    """Filtre et élimine les aberrations numériques générées par XFoil.
+
+    Ces artefacts mathématiques surviennent généralement aux abords du décrochage
+    ou à très bas nombre de Reynolds.
+
+    :param alpha_map: Dictionnaire brut issu de XFoil ``{alpha: (CL, CD, CM)}``.
+    :type alpha_map: dict
+    :return: Dictionnaire nettoyé ne contenant que les points jugés physiques.
+    :rtype: dict
+    """
+    return {a: v for a, v in alpha_map.items() if _is_physical(*v)}
+
+
+def _extrapolate(
+    alphas: np.ndarray,
+    alpha_map: Dict[float, Tuple[float, float, float]]
+) -> Dict[float, Tuple[float, float, float]]:
+    """Garantit l'absence de valeurs manquantes par interpolation ou extrapolation bornée.
+
+    Réalise une interpolation linéaire sur la plage de données connues, puis applique
+    un blocage aux limites (flat-clamp via ``np.interp``) hors des bornes pour éviter
+    l'explosion des valeurs extrapolées.
+
+    :param alphas: Liste exhaustive de tous les angles d'attaque cibles.
+    :type alphas: np.ndarray
+    :param alpha_map: Dictionnaire des points valides convergés.
+    :type alpha_map: dict
+    :return: Dictionnaire complet couvrant l'ensemble de la plage d'angles d'attaque demandée.
+    :rtype: dict
+    """
+    if not alpha_map:
+        return {round(float(a), 2): (0.0, 0.0, 0.0) for a in alphas}
+
+    known_a = np.array(sorted(alpha_map))
+    known_CL = np.array([alpha_map[a][0] for a in known_a])
+    known_CD = np.array([alpha_map[a][1] for a in known_a])
+    known_CM = np.array([alpha_map[a][2] for a in known_a])
+
+    result = {}
+    for a in alphas:
+        key = round(float(a), 2)
+        if key in alpha_map:
+            result[key] = alpha_map[key]
+        else:
+            cl = float(np.interp(a, known_a, known_CL))
+            cd = float(np.interp(a, known_a, known_CD))
+            cm = float(np.interp(a, known_a, known_CM))
+
+            cl = float(np.clip(cl, *CL_BOUNDS))
+            cd = float(np.clip(cd, *CD_BOUNDS))
+            cm = float(np.clip(cm, *CM_BOUNDS))
+
+            result[key] = (cl, cd, cm)
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PROCESSUS MULTIPROCESSING (WORKER)
+# ═══════════════════════════════════════════════════════════════════
+
+def compute_profile_re(args: Tuple[str, float, np.ndarray, Dict[str, Any]]) -> Dict[str, Any]:
+    """Exécute la routine complète XFoil en cascade pour un unique couple (profil, Reynolds).
+
+    Cette fonction autonome est conçue pour être distribuée via un pool d'exécution de processus.
+    Elle applique trois niveaux de résolution (Batch -> Segment de 10 -> Point par point)
+    avant de combler les trous résiduels par extrapolation numérique.
+
+    :param args: Tuple ``(profil_name, re_val, alphas, geom_row)`` où :
+        ``profil_name`` (str) est l'identifiant du profil, ``re_val``
+        (float) le nombre de Reynolds à évaluer, ``alphas`` (np.ndarray)
+        la liste ordonnée des angles d'attaque cibles, et ``geom_row``
+        (dict) les métadonnées géométriques.
+    :type args: tuple
+    :return: Dictionnaire résumant le succès de l'opération, le taux de
+        convergence et la liste complète des dictionnaires de lignes
+        générées pour le DataFrame.
+    :rtype: dict
+    """
+    profil_name, re_val, alphas, geom_row = args
+    alpha_map: Dict[float, Tuple[float, float, float]] = {}
+
+    timeout = TIMEOUT_MAP.get(re_val, TIMEOUT_DEFAULT)
+    max_iter = ITER_MAP.get(re_val, ITER_DEFAULT)
+
+    try:
+        airfoil = asb.Airfoil(profil_name)
+
+        # ── Niveau 0 : batch complet séquencé ───────────────────────
+        try:
+            alpha_map.update(_sanitize_map(
+                _run_xfoil(airfoil, re_val, alphas, max_iter, timeout)
+            ))
+        except Exception:
+            pass
+
+        # ── Niveau 1 : segments de 10 sur les manquants ──────────────
+        missing = [a for a in alphas if round(float(a), 2) not in alpha_map]
+        if missing:
+            seg_iter = max(30, max_iter // 2)
+            seg_timeout = max(10, timeout // 2)
+            for i in range(0, len(missing), 10):
+                seg = np.array(missing[i:i + 10])
+                try:
+                    alpha_map.update(_sanitize_map(
+                        _run_xfoil(airfoil, re_val, seg, seg_iter, seg_timeout)
+                    ))
+                except Exception:
+                    pass
+
+        # ── Niveau 2 : point par point sur ce qui reste ──────────────
+        missing = [a for a in alphas if round(float(a), 2) not in alpha_map]
+        if missing:
+            pt_iter = max(20, max_iter // 3)
+            pt_timeout = max(8, timeout // 4)
+            for a in missing:
+                try:
+                    alpha_map.update(_sanitize_map(
+                        _run_xfoil(airfoil, re_val, np.array([a]), pt_iter, pt_timeout)
+                    ))
+                except Exception:
+                    pass
+
+        # ── Niveau 3 : extrapolation (garantit aucun NaN) ────────────
+        final_map = _extrapolate(alphas, alpha_map)
+        n_conv = len(alpha_map)
+
+        rows = []
+        for alpha in alphas:
+            key = round(float(alpha), 2)
+            cl, cd, cm = final_map[key]
+            ld = (cl / cd) if abs(cd) > 1e-10 else 0.0
+            ld = float(np.clip(ld, -LD_MAX, LD_MAX))
+            rows.append({
+                "naca": profil_name,
+                "source": geom_row["source"],
+                "t": geom_row["t"],
+                "camber": geom_row["camber"],
+                "x_t": geom_row["x_t"],
+                "x_c": geom_row["x_c"],
+                "LE_radius": geom_row["LE_radius"],
+                "TE_angle": geom_row["TE_angle"],
+                "t_over_xt": geom_row["t_over_xt"],
+                "area": geom_row["area"],
+                "alpha": key,
+                "Re": float(re_val),
+                "CL": round(cl, 6),
+                "CD": round(cd, 6),
+                "CM": round(cm, 6),
+                "LD": round(ld, 4),
+                "converged": key in alpha_map,
+            })
+
+        return {
+            "success": True,
+            "profil": profil_name,
+            "Re": re_val,
+            "n_conv": n_conv,
+            "n_total": len(alphas),
+            "rows": rows,
+        }
+
+    except Exception as exc:
+        return {
+            "success": False,
+            "profil": profil_name,
+            "Re": re_val,
+            "n_conv": 0,
+            "error": str(exc),
+            "rows": [],
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CONSTRUCTEUR PRINCIPAL
+# ═══════════════════════════════════════════════════════════════════
+
+class XFoilDatasetBuilder:
+    """Orchestre la parallélisation et la consolidation du jeu de données XFoil.
+
+    :ivar input_csv: Emplacement du fichier de données géométriques d'entrée.
+    :vartype input_csv: str
+    :ivar output_csv: Emplacement du fichier CSV cible enrichi.
+    :vartype output_csv: str
+    :ivar max_cores: Nombre maximal de cœurs CPU autorisés pour la parallélisation.
+    :vartype max_cores: int
+    """
+
+    def __init__(self, input_csv: str, output_csv: str, max_cores: int = 8) -> None:
+        """Initialise le constructeur de jeu de données XFoil.
+
+        :param input_csv: Chemin vers le CSV géométrique d'entrée.
+        :type input_csv: str
+        :param output_csv: Chemin vers le CSV enrichi de sortie.
+        :type output_csv: str
+        :param max_cores: Plafond du nombre de cœurs processeurs utilisables.
+        :type max_cores: int
+        """
+        self.input_csv: str = input_csv
+        self.output_csv: str = output_csv
+        self.max_cores: int = max_cores
+
+    @staticmethod
+    def _flush_rows(
+        rows: List[Dict[str, Any]],
+        output_csv: str,
+        first_write_flag: List[bool],
+        global_row_counter: List[int],
+        t0: float,
+        n_total_for_eta: int,
+        profil: str,
+        re_val: float
+    ) -> None:
+        """Écrit à la volée les lignes de résultats calculées dans le fichier CSV.
+
+        Met à jour les compteurs en temps réel et affiche une ligne d'avancement
+        détaillée comprenant une estimation dynamique du temps restant (ETA).
+
+        :param rows: Liste des dictionnaires de données générés pour un profil à un Reynolds donné.
+        :type rows: list
+        :param output_csv: Chemin cible du fichier CSV d'écriture.
+        :type output_csv: str
+        :param first_write_flag: Liste mutable d'un élément booléen contrôlant l'ajout du header.
+        :type first_write_flag: list
+        :param global_row_counter: Liste mutable d'un entier traquant le nombre total de lignes écrites.
+        :type global_row_counter: list
+        :param t0: Horodatage initial du lancement du script.
+        :type t0: float
+        :param n_total_for_eta: Volume total estimé de lignes à écrire pour le calcul de l'ETA.
+        :type n_total_for_eta: int
+        :param profil: Identifiant du profil aérodynamique courant.
+        :type profil: str
+        :param re_val: Nombre de Reynolds courant.
+        :type re_val: float
+        :return: Rien.
+        :rtype: None
+        """
+        for row in rows:
+            pd.DataFrame([row]).to_csv(
+                output_csv,
+                mode="a",
+                header=first_write_flag[0],
+                index=False,
+                encoding="utf-8"
+            )
+            first_write_flag[0] = False
+
+            global_row_counter[0] += 1
+            i_row = global_row_counter[0]
+
+            elapsed = time.time() - t0
+            eta_s = (elapsed / i_row) * (n_total_for_eta - i_row) if i_row > 0 else 0
+
+            conv_tag = "OK " if row["converged"] else "itp"
+            print(
+                f"  [{i_row:7d}/{n_total_for_eta}]  "
+                f"{profil:22s}  "
+                f"Re={re_val:.2e}  "
+                f"α={row['alpha']:+6.2f}°  "
+                f"[{conv_tag}]  "
+                f"CL={row['CL']:+7.4f}  "
+                f"CD={row['CD']:8.5f}  "
+                f"CM={row['CM']:+7.4f}  "
+                f"L/D={row['LD']:+8.2f}  "
+                f"ETA {eta_s / 60:6.1f} min"
+            )
+
+    def build(self) -> None:
+        """Déclenche la création du jeu de données aérodynamique distribué.
+
+        Cette méthode charge les données géométriques, identifie les couples (profil, Reynolds)
+        déjà calculés en cas de crash précédent pour assurer une reprise automatique,
+        puis distribue la charge de travail sur les différents processus esclaves.
+
+        :return: Rien. Écrit (ou complète) :attr:`output_csv` sur disque.
+        :rtype: None
+        """
+        df = pd.read_csv(self.input_csv)
+        alphas = np.sort(df["alpha"].unique())
+        re_vals = np.sort(df["Re"].unique())
+
+        geom_cols = ["naca", "source", "t", "camber", "x_t", "x_c",
+                     "LE_radius", "TE_angle", "t_over_xt", "area"]
+        geom_df = (df[geom_cols]
+                   .drop_duplicates(subset=["naca"])
+                   .set_index("naca"))
+        profils = geom_df.index.tolist()
+
+        done_keys: Set[Tuple[str, float]] = set()
+        first_write = [True]
+
+        try:
+            df_done = pd.read_csv(self.output_csv, usecols=["naca", "Re"])
+            for _, r in df_done.iterrows():
+                done_keys.add((str(r["naca"]), float(r["Re"])))
+            first_write[0] = False
+            print(f"\n  Reprise : {len(done_keys)} paires (profil×Re) déjà calculées")
+        except FileNotFoundError:
+            print(f"\n  Nouveau fichier : {self.output_csv}")
+
+        try:
+            n_already = sum(1 for _ in open(self.output_csv)) - 1
+        except FileNotFoundError:
+            n_already = 0
+
+        tasks = []
+        for profil in profils:
+            for re_val in re_vals:
+                if (profil, float(re_val)) in done_keys:
+                    continue
+                tasks.append((
+                    profil,
+                    float(re_val),
+                    alphas,
+                    geom_df.loc[profil].to_dict(),
+                ))
+
+        n_tasks = len(tasks)
+        n_total_rows = n_tasks * len(alphas)
+        n_all_rows = len(profils) * len(re_vals) * len(alphas)
+        n_total_for_eta = n_already + n_total_rows
+
+        cores_dispo = multiprocessing.cpu_count()
+        n_proc = min(self.max_cores, max(1, cores_dispo // 2))
+
+        print("\n" + "═" * 66)
+        print("  XFOIL DATASET BUILDER — BATCH + cascade de convergence")
+        print("═" * 66)
+        print(f"  Profils uniques  : {len(profils)}")
+        print(f"  Re values        : {len(re_vals)}  {[f'{r:.0e}' for r in re_vals]}")
+        print(f"  Alpha points     : {len(alphas)}  ({alphas[0]}° → {alphas[-1]}°)")
+        print(f"  Tâches totales   : {len(profils) * len(re_vals)}  ({n_tasks} restantes)")
+        print(f"  CPU disponibles  : {cores_dispo}   utilisés : {n_proc}")
+        print(f"  Lignes attendues : {n_all_rows:,}  ({n_total_rows:,} restantes)")
+        print(f"  Timeouts         : {TIMEOUT_MAP}")
+        print("  Stratégie        : batch séquencé → segments → point/point → extrapolation")
+        print("═" * 66 + "\n")
+
+        if n_tasks == 0:
+            print("  Dataset déjà complet — rien à calculer.")
+            return
+
+        global_row_counter = [n_already]
+        n_ok = len(done_keys)
+        n_err = 0
+        t0 = time.time()
+
+        with multiprocessing.Pool(processes=n_proc) as pool:
+            for i_task, res in enumerate(
+                pool.imap_unordered(compute_profile_re, tasks), 1
+            ):
+                if not res["success"]:
+                    n_err += 1
+                    print(f"\n  [FAIL]  {res['profil']:22s}  Re={res['Re']:.2e}"
+                          f"  → {res.get('error', '?')}\n")
+                    continue
+
+                conv_pct = 100 * res["n_conv"] / res["n_total"]
+                print(
+                    f"\n  ┌─ {res['profil']}  Re={res['Re']:.2e}"
+                    f"  convergé={res['n_conv']}/{res['n_total']} ({conv_pct:.0f}%)"
+                    f"  [{i_task}/{n_tasks} tâches]"
+                )
+
+                self._flush_rows(
+                    rows=res["rows"],
+                    output_csv=self.output_csv,
+                    first_write_flag=first_write,
+                    global_row_counter=global_row_counter,
+                    t0=t0,
+                    n_total_for_eta=n_total_for_eta,
+                    profil=res["profil"],
+                    re_val=res["Re"],
+                )
+                n_ok += 1
+
+        total_elapsed = time.time() - t0
+        try:
+            n_lines: Any = sum(1 for _ in open(self.output_csv)) - 1
+        except Exception:
+            n_lines = "?"
+
+        print("\n" + "═" * 66)
+        print("  FIN DU CALCUL")
+        print("═" * 66)
+        print(f"  Tâches réussies  : {n_ok}")
+        print(f"  Tâches échouées  : {n_err}")
+        print(f"  Lignes écrites   : {n_lines:,}" if isinstance(n_lines, int)
+              else f"  Lignes écrites   : {n_lines}")
+        print(f"  Temps total      : {total_elapsed / 60:.1f} min")
+        print("═" * 66)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# POINT D'ENTRÉE DU SCRIPT
+# ═══════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+
+    builder = XFoilDatasetBuilder(
+        input_csv=INPUT_DATASET,
+        output_csv=OUTPUT_DATASET,
+        max_cores=8,
+    )
+    builder.build()

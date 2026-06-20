@@ -31,6 +31,11 @@ exclude_patterns = []
 
 language = 'fr'
 
+# Dependances lourdes non installees dans l'environnement de build :
+# autodoc simule leur presence pour pouvoir extraire les docstrings
+# sans avoir besoin d'installer aerosandbox / tensorflow.
+autodoc_mock_imports = ['aerosandbox', 'tensorflow']
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
