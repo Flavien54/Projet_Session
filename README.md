@@ -263,6 +263,54 @@ pytest tests/ -v
 
 ---
 
+## Documentation
+
+Le code est documenté selon la convention **Sphinx (reStructuredText)** vue au
+Module 10a : chaque fonction/classe possède une docstring avec les champs
+`:param:`, `:type:`, `:return:`, `:rtype:` et `:raises:`.
+
+```python
+def add_numbers(a, b):
+    """
+    Additionne deux nombres.
+
+    :param a: Premier nombre.
+    :type a: int
+    :param b: Deuxieme nombre.
+    :type b: int
+    :return: La somme des deux nombres.
+    :rtype: int
+    """
+    return a + b
+```
+
+### Générer la documentation HTML
+
+```bash
+# 1. Installer Sphinx
+pip install Sphinx
+
+# 2. (déjà fait dans ce dépôt) créer le squelette du projet
+sphinx-quickstart docs --sep
+
+# 3. Générer/régénérer les fichiers .rst à partir des docstrings
+python -m sphinx.ext.apidoc -o docs/source . docs tests
+
+# 4. Construire le site HTML
+cd docs
+python -m sphinx -b html source build/html
+# ou, si sphinx-build est dans le PATH : ./make.bat html (Windows) / make html (Linux/macOS)
+
+# 5. Ouvrir le résultat
+docs/build/html/index.html
+```
+
+`docs/source/conf.py` active l'extension `sphinx.ext.autodoc` et pointe
+(`sys.path`) vers la racine du dépôt pour importer les modules. `docs/build/`
+est un dossier généré, à ne pas committer (voir `.gitignore`).
+
+---
+
 ## Validation — Ansys Fluent
 
 Trois profils ont été simulés indépendamment avec Ansys Fluent (CFD haute fidélité) pour valider les prédictions ML :

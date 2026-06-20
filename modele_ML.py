@@ -18,28 +18,25 @@ np.random.seed(42)
 # 1. PRÉPROCESSEUR DU JEU DE DONNÉES
 # ─────────────────────────────────────────────────────────────────────────────
 class NACAAeroPreprocessor:
-    """
-    Prétraitement des données aérodynamiques NACA pour l'apprentissage multi-tâches.
+    """Prétraitement des données aérodynamiques NACA pour l'apprentissage multi-tâches.
 
     Ce préprocesseur gère l'encodage des variables catégorielles (naca, source),
     la normalisation des variables continues et la standardisation des cibles.
 
-    Attributes
-    ----------
-    CATEGORICAL_COLS : list
-        Noms des colonnes catégorielles du dataset.
-    CONTINUOUS_COLS : list
-        Noms des colonnes continues à normaliser.
-    TARGET_COLS : list
-        Noms des colonnes cibles (CL, CD, CM).
-    label_encoders : dict
-        Dictionnaire des encodeurs LabelEncoder pour chaque colonne catégorielle.
-    feature_scaler : StandardScaler
-        Scaler pour les caractéristiques continues.
-    target_scalers : dict
-        Dictionnaire des scalers pour chaque colonne cible.
-    is_fitted : bool
-        Indique si le préprocesseur a été ajusté sur les données.
+    :ivar CATEGORICAL_COLS: Noms des colonnes catégorielles du dataset.
+    :vartype CATEGORICAL_COLS: list
+    :ivar CONTINUOUS_COLS: Noms des colonnes continues à normaliser.
+    :vartype CONTINUOUS_COLS: list
+    :ivar TARGET_COLS: Noms des colonnes cibles (CL, CD, CM).
+    :vartype TARGET_COLS: list
+    :ivar label_encoders: Dictionnaire des encodeurs LabelEncoder pour chaque colonne catégorielle.
+    :vartype label_encoders: dict
+    :ivar feature_scaler: Scaler pour les caractéristiques continues.
+    :vartype feature_scaler: StandardScaler
+    :ivar target_scalers: Dictionnaire des scalers pour chaque colonne cible.
+    :vartype target_scalers: dict
+    :ivar is_fitted: Indique si le préprocesseur a été ajusté sur les données.
+    :vartype is_fitted: bool
     """
 
     CATEGORICAL_COLS = ["naca", "source"]
@@ -54,21 +51,14 @@ class NACAAeroPreprocessor:
         self.is_fitted = False
 
     def fit_transform(self, df: pd.DataFrame):
-        """
-        Ajuste le préprocesseur et transforme les données.
+        """Ajuste le préprocesseur et transforme les données.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame contenant les données brutes avec toutes les colonnes.
-
-        Returns
-        -------
-        tuple
-            X : np.ndarray
-                Matrice des caractéristiques encodées et normalisées.
-            y_dict : dict
-                Dictionnaire des cibles standardisées pour CL, CD, CM.
+        :param df: DataFrame contenant les données brutes avec toutes les colonnes.
+        :type df: pd.DataFrame
+        :return: Tuple ``(X, y_dict)`` où ``X`` est la matrice des
+            caractéristiques encodées et normalisées, et ``y_dict`` le
+            dictionnaire des cibles standardisées pour CL, CD, CM.
+        :rtype: tuple
         """
         X = self._encode_features(df, fit=True)
         y_dict = {}
@@ -78,60 +68,38 @@ class NACAAeroPreprocessor:
         return X, y_dict
 
     def transform(self, df: pd.DataFrame):
-        """
-        Transforme les données avec le préprocesseur déjà ajusté.
+        """Transforme les données avec le préprocesseur déjà ajusté.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame contenant les données brutes.
-
-        Returns
-        -------
-        np.ndarray
-            Matrice des caractéristiques encodées et normalisées.
-
-        Raises
-        ------
-        AssertionError
-            Si le préprocesseur n'a pas été ajusté avec fit_transform.
+        :param df: DataFrame contenant les données brutes.
+        :type df: pd.DataFrame
+        :return: Matrice des caractéristiques encodées et normalisées.
+        :rtype: np.ndarray
+        :raises AssertionError: Si le préprocesseur n'a pas été ajusté avec fit_transform.
         """
         assert self.is_fitted, "Le préprocesseur doit d'abord être ajusté (fit)."
         return self._encode_features(df, fit=False)
 
     def inverse_transform_target(self, y_scaled: np.ndarray, col: str) -> np.ndarray:
-        """
-        Inverse la normalisation d'une colonne cible.
+        """Inverse la normalisation d'une colonne cible.
 
-        Parameters
-        ----------
-        y_scaled : np.ndarray
-            Valeurs cibles normalisées.
-        col : str
-            Nom de la colonne cible ('CL', 'CD' ou 'CM').
-
-        Returns
-        -------
-        np.ndarray
-            Valeurs cibles dans l'échelle d'origine.
+        :param y_scaled: Valeurs cibles normalisées.
+        :type y_scaled: np.ndarray
+        :param col: Nom de la colonne cible ('CL', 'CD' ou 'CM').
+        :type col: str
+        :return: Valeurs cibles dans l'échelle d'origine.
+        :rtype: np.ndarray
         """
         return self.target_scalers[col].inverse_transform(y_scaled)
 
     def _encode_features(self, df: pd.DataFrame, fit: bool) -> np.ndarray:
-        """
-        Encode les caractéristiques catégorielles et continues.
+        """Encode les caractéristiques catégorielles et continues.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame contenant les données.
-        fit : bool
-            Si True, ajuste les encodeurs, sinon utilise les encodeurs existants.
-
-        Returns
-        -------
-        np.ndarray
-            Matrice des caractéristiques encodées.
+        :param df: DataFrame contenant les données.
+        :type df: pd.DataFrame
+        :param fit: Si True, ajuste les encodeurs, sinon utilise les encodeurs existants.
+        :type fit: bool
+        :return: Matrice des caractéristiques encodées.
+        :rtype: np.ndarray
         """
         encoded_parts = []
 
@@ -154,65 +122,50 @@ class NACAAeroPreprocessor:
 
     @property
     def input_dim(self) -> int:
-        """
-        Retourne la dimension de l'espace d'entrée.
+        """Retourne la dimension de l'espace d'entrée.
 
-        Returns
-        -------
-        int
-            Nombre total de caractéristiques après encodage.
+        :return: Nombre total de caractéristiques après encodage.
+        :rtype: int
         """
         return len(self.CATEGORICAL_COLS) + len(self.CONTINUOUS_COLS)
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. ARCHITECTURE MULTI-TÂCHES PROFONDE
 # ─────────────────────────────────────────────────────────────────────────────
 class NACAMultiTaskModel:
-    """
-    Modèle de réseau de neurones multi-tâches pour la prédiction des coefficients aérodynamiques.
+    """Modèle de réseau de neurones multi-tâches pour la prédiction des coefficients aérodynamiques.
 
     Ce modèle prédit simultanément CL (coefficient de portance),
     CD (coefficient de traînée) et CM (coefficient de moment).
 
-    Attributes
-    ----------
-    input_dim : int
-        Dimension de l'espace d'entrée.
-    learning_rate : float
-        Taux d'apprentissage pour l'optimiseur Adam.
-    model : keras.Model
-        Modèle Keras compilé.
+    :ivar input_dim: Dimension de l'espace d'entrée.
+    :vartype input_dim: int
+    :ivar learning_rate: Taux d'apprentissage pour l'optimiseur Adam.
+    :vartype learning_rate: float
+    :ivar model: Modèle Keras compilé.
+    :vartype model: keras.Model
     """
 
     def __init__(self, input_dim: int, learning_rate: float = 5e-4):
-        """
-        Initialise le modèle multi-tâches.
+        """Initialise le modèle multi-tâches.
 
-        Parameters
-        ----------
-        input_dim : int
-            Dimension des caractéristiques d'entrée.
-        learning_rate : float, optional
-            Taux d'apprentissage (défaut: 5e-4).
+        :param input_dim: Dimension des caractéristiques d'entrée.
+        :type input_dim: int
+        :param learning_rate: Taux d'apprentissage (défaut: 5e-4).
+        :type learning_rate: float
         """
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.model = self._build()
 
     def _build_expert_branch(self, base_tensor, name: str):
-        """
-        Construit une branche experte pour une tâche spécifique.
+        """Construit une branche experte pour une tâche spécifique.
 
-        Parameters
-        ----------
-        base_tensor : tf.Tensor
-            Tenseur d'entrée provenant du tronc commun.
-        name : str
-            Nom de la branche (CL, CD ou CM).
-
-        Returns
-        -------
-        tf.Tensor
-            Tenseur de sortie pour la tâche spécifique.
+        :param base_tensor: Tenseur d'entrée provenant du tronc commun.
+        :type base_tensor: tf.Tensor
+        :param name: Nom de la branche (CL, CD ou CM).
+        :type name: str
+        :return: Tenseur de sortie pour la tâche spécifique.
+        :rtype: tf.Tensor
         """
         # Première couche dense élargie
         x = layers.Dense(256, activation="swish", name=f"dense_{name}_1")(base_tensor)
@@ -235,13 +188,10 @@ class NACAMultiTaskModel:
         return out
 
     def _build(self) -> keras.Model:
-        """
-        Construit l'architecture complète du modèle multi-tâches.
+        """Construit l'architecture complète du modèle multi-tâches.
 
-        Returns
-        -------
-        keras.Model
-            Modèle Keras compilé avec les sorties CL, CD, CM.
+        :return: Modèle Keras compilé avec les sorties CL, CD, CM.
+        :rtype: keras.Model
         """
         # Entrée du modèle
         inp = keras.Input(shape=(self.input_dim,), name="features")

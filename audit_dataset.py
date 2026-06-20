@@ -64,6 +64,14 @@ LAB_KW   = dict(color=SUBTEXT, fontsize=9)
 # ══════════════════════════════════════════════════════════════
 
 def load(filepath):
+    """Charge le dataset CSV et dérive la colonne famille à partir du nom NACA/UIUC.
+
+    :param filepath: Chemin du fichier CSV à charger.
+    :type filepath: str
+    :return: DataFrame du dataset, enrichi d'une colonne ``famille``
+        (lettres initiales du nom de profil, en minuscules).
+    :rtype: pd.DataFrame
+    """
     df = pd.read_csv(filepath)
     # Famille de profil : lettres initiales du nom
     df["famille"] = df["naca"].str.extract(r"^([a-zA-Z]+)")[0].str.lower()
@@ -71,7 +79,13 @@ def load(filepath):
 
 
 def clean_output_dir(output_dir):
-    """Nettoie les anciens fichiers PDF du dossier sans supprimer le dossier lui-même"""
+    """Nettoie les anciens fichiers PDF du dossier sans supprimer le dossier lui-même.
+
+    :param output_dir: Chemin du dossier de sortie à nettoyer (créé s'il n'existe pas).
+    :type output_dir: str
+    :return: Rien.
+    :rtype: None
+    """
     if os.path.exists(output_dir):
         print(f"  Nettoyage des anciens PDF dans: {output_dir}")
         # Supprimer uniquement les fichiers PDF existants
@@ -90,7 +104,15 @@ def clean_output_dir(output_dir):
 # ══════════════════════════════════════════════════════════════
 
 def report_familles(output_dir, df):
-    """Génère un PDF avec les graphiques des familles de profils"""
+    """Génère un PDF avec les graphiques des familles de profils.
+
+    :param output_dir: Dossier de sortie où écrire le PDF généré.
+    :type output_dir: str
+    :param df: DataFrame du dataset, doit contenir une colonne ``famille``.
+    :type df: pd.DataFrame
+    :return: Rien. Le PDF ``01_familles_profils.pdf`` est écrit sur disque.
+    :rtype: None
+    """
     filepath = os.path.join(output_dir, "01_familles_profils.pdf")
     fig = plt.figure(figsize=(11.7, 8.3))
     fig.patch.set_facecolor(BG)
@@ -163,7 +185,17 @@ def report_familles(output_dir, df):
 # ══════════════════════════════════════════════════════════════
 
 def report_features(output_dir, df):
-    """Génère un PDF avec la distribution des 8 features géométriques"""
+    """Génère un PDF avec la distribution des 8 features géométriques.
+
+    :param output_dir: Dossier de sortie où écrire le PDF généré.
+    :type output_dir: str
+    :param df: DataFrame du dataset, doit contenir les colonnes géométriques
+        (``t``, ``camber``, ``x_t``, ``x_c``, ``LE_radius``, ``TE_angle``,
+        ``t_over_xt``, ``area``) et ``naca``.
+    :type df: pd.DataFrame
+    :return: Rien. Le PDF ``02_features_geometriques.pdf`` est écrit sur disque.
+    :rtype: None
+    """
     filepath = os.path.join(output_dir, "02_features_geometriques.pdf")
     features = ["t", "camber", "x_t", "x_c", "LE_radius", "TE_angle", "t_over_xt", "area"]
     labels   = ["Epaisseur (t)", "Cambrure", "Pos. epaisseur (x_t)",
@@ -207,7 +239,16 @@ def report_features(output_dir, df):
 # ══════════════════════════════════════════════════════════════
 
 def report_scatter(output_dir, df):
-    """Génère un PDF avec les scatter plots entre features"""
+    """Génère un PDF avec les scatter plots entre features géométriques, par source.
+
+    :param output_dir: Dossier de sortie où écrire le PDF généré.
+    :type output_dir: str
+    :param df: DataFrame du dataset, doit contenir les colonnes géométriques
+        et une colonne ``source`` (``naca_grid`` ou ``uiuc``).
+    :type df: pd.DataFrame
+    :return: Rien. Le PDF ``03_scatter_plots.pdf`` est écrit sur disque.
+    :rtype: None
+    """
     filepath = os.path.join(output_dir, "03_scatter_plots.pdf")
     fig = plt.figure(figsize=(11.7, 8.3))
     fig.patch.set_facecolor(BG)
@@ -252,7 +293,22 @@ def report_scatter(output_dir, df):
 # ══════════════════════════════════════════════════════════════
 
 def audit_dataset(filepath="dataset.csv", output_dir="audit_reports"):
+    """Audite le dataset XFoil et génère les rapports PDF correspondants.
 
+    Charge le CSV, affiche un résumé qualité dans la console (doublons,
+    valeurs manquantes, profils incomplets), puis génère les trois
+    rapports PDF (familles, features géométriques, scatter plots) dans
+    ``output_dir`` via :func:`report_familles`, :func:`report_features`
+    et :func:`report_scatter`.
+
+    :param filepath: Chemin du fichier CSV du dataset à auditer.
+    :type filepath: str
+    :param output_dir: Dossier de sortie des rapports PDF (nettoyé des
+        anciens PDF avant génération, voir :func:`clean_output_dir`).
+    :type output_dir: str
+    :return: Rien.
+    :rtype: None
+    """
     print(f"Chargement : {filepath}")
     df = load(filepath)
 

@@ -1,0 +1,15 @@
+# PyCharm
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sphinx
+docs/build/
+
+# Données/artefacts volumineux générés
+audit_reports/
+dataset_test_isolated.csv
