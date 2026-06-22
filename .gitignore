@@ -8,7 +8,7 @@ __pycache__/
 venv/
 
 # Sphinx
-docs/build/
+# docs/build/
 
 # Données/artefacts volumineux générés
 audit_reports/

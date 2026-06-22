@@ -291,15 +291,15 @@ def add_numbers(a, b):
 pip install Sphinx
 
 # 2. (déjà fait dans ce dépôt) créer le squelette du projet
-sphinx-quickstart docs --sep
+python -m sphinx.cmd.quickstart docs --sep
 
 # 3. Générer/régénérer les fichiers .rst à partir des docstrings
-python -m sphinx.ext.apidoc -o docs/source . docs tests
+#    (-f pour écraser/rafraîchir les .rst existants, ex. nouveau module)
+python -m sphinx.ext.apidoc -f -o docs/source . docs tests
 
 # 4. Construire le site HTML
 cd docs
 python -m sphinx -b html source build/html
-# ou, si sphinx-build est dans le PATH : ./make.bat html (Windows) / make html (Linux/macOS)
 
 # 5. Ouvrir le résultat
 docs/build/html/index.html
@@ -308,6 +308,12 @@ docs/build/html/index.html
 `docs/source/conf.py` active l'extension `sphinx.ext.autodoc` et pointe
 (`sys.path`) vers la racine du dépôt pour importer les modules. `docs/build/`
 est un dossier généré, à ne pas committer (voir `.gitignore`).
+
+Sans `aerosandbox`/`tensorflow` installés, autodoc échoue à importer
+`calcul_Xfoil.py`, `data_profils.py` et `modele_ML.py` (pages vides dans le
+HTML généré). `conf.py` contient `autodoc_mock_imports = ['aerosandbox',
+'tensorflow']` pour simuler ces dépendances et extraire quand même les
+docstrings sans les installer.
 
 ---
 
