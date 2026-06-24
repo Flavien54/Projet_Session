@@ -1,0 +1,18 @@
+# Deck de configuration AeroPredict (MGA 802)
+# Complétez ces paramètres avant de lancer : python main.py
+
+chemins:
+  dataset_geometrie: dataset_projet/dataset_profil.csv
+  dataset_xfoil: dataset_projet/dataset_aeroXfoil.csv
+  dataset_predictions: dataset_projet/dataset_aeroXfoil_avec_predictions.csv
+  modele: naca_multitask_model.keras
+  preprocesseur: preprocessor.pkl
+  rapports_audit: audit_reports
+
+xfoil:
+  executable: C:\Xfoil\xfoil.exe
+  max_coeurs: 8
+
+# true : limite la construction du dataset à 10 profils (test rapide)
+mode_test: true
+
