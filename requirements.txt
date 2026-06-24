@@ -29,3 +29,5 @@ pytest
 
 # --- Documentation (Sphinx) ---
 sphinx              # inclut autodoc, napoleon, viewcode et le thème alabaster
+sphinx-rtd-theme
+scikit-learn
