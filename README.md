@@ -73,10 +73,10 @@ AeroPredict/
 │   ├── dataset_profil.csv                     # Dataset géométrique (Étape 1)
 │   ├── dataset_aeroXfoil.csv                  # Dataset enrichi XFoil (Étape 2)
 │   └── dataset_aeroXfoil_avec_predictions.csv # Dataset + prédictions ML (Étape 4)
-│
-├── naca0106_Re50000_FLUENT.csv                # Validation Ansys Fluent
-├── goe101_Re500000_FLUENT.csv
-├── supermarine371ii_Re100000_FLUENT.csv
+│   └── dataset_fluent_csv                     # Dataset de validation via FLUENT      
+├              
+|
+|
 │
 └── tests/
     ├── conftest.py
@@ -163,6 +163,7 @@ chemins:
   dataset_geometrie: dataset_projet/dataset_profil.csv
   dataset_xfoil: dataset_projet/dataset_aeroXfoil.csv
   dataset_predictions: dataset_projet/dataset_aeroXfoil_avec_predictions.csv
+  dataset_fluent: dataset_projet/dataset_fluent.csv
   modele: naca_multitask_model.keras
   preprocesseur: preprocessor.pkl
   rapports_audit: audit_reports
