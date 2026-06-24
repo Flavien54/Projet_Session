@@ -263,8 +263,7 @@ pytest tests/ -v
 
 ## Documentation
 
-> 📖 La documentation HTML est déjà construite : ouvre **`docs/build/html/index.html`**
-> dans un navigateur (double-clic) pour la consulter.
+> 📖 La documentation HTML est déjà construite :
 
 Le code est documenté selon la convention **Sphinx (reStructuredText)** vue au
 Module 10a : chaque fonction/classe possède une docstring avec les champs
