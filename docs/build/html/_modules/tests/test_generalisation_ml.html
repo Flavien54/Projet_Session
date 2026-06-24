@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tests.test_generalisation_ml &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=74e33a29"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/translations.js?v=e6b791cb"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Recherche" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Code source de tests.test_generalisation_ml</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot; L&#39;objectif du test est de que l&#39;Intelligence Artificielle n&#39;apprenne pas ses données d&#39;entraînement par cœur sans comprendre la logique.</span>
+<span class="sd">- Les profils NACA 4 chiffres sont générés par une équation mathématique stricte.</span>
+<span class="sd">- Les profils UIUC sont des profils d&#39;ailes réels, plus complexe.</span>
+
+<span class="sd">Le fonctionnement du test :</span>
+<span class="sd">    On sépare les prédictions en deux groupes (NACA vs UIUC).</span>
+<span class="sd">    On calcule l&#39;Erreur Absolue Moyenne du CL pour voir de combien l&#39;IA se trompe par rapport à XFoil.</span>
+<span class="sd">    L&#39;erreur sur les profils réels (UIUC) ne doit pas dépasser l&#39;erreur sur les profils théoriques de plus d&#39;une marge tolérée de 0.05.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="c1"># === CHEMINS ===</span>
+<span class="n">ROOT_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)))</span>
+<span class="n">DATASET_XFOIL_PATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ROOT_DIR</span><span class="p">,</span> <span class="s2">&quot;dataset_aeroXfoil.csv&quot;</span><span class="p">)</span>
+<span class="n">DATASET_ML_PATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ROOT_DIR</span><span class="p">,</span> <span class="s2">&quot;dataset_aeroXfoil_avec_predictions.csv&quot;</span><span class="p">)</span>
+<span class="c1"># =======================</span>
+
+<div class="viewcode-block" id="df_predictions">
+<a class="viewcode-back" href="../../tests.html#tests.test_generalisation_ml.df_predictions">[docs]</a>
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;module&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">df_predictions</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Charge et fusionne les datasets XFoil et ML pour la comparaison.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATASET_XFOIL_PATH</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATASET_ML_PATH</span><span class="p">)):</span>
+        <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;Datasets introuvables. Exécutez le pipeline complet d&#39;abord.&quot;</span><span class="p">)</span>
+        
+    <span class="n">df_xfoil</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">DATASET_XFOIL_PATH</span><span class="p">)</span>
+    <span class="n">df_ml</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">DATASET_ML_PATH</span><span class="p">)</span>
+    
+    <span class="c1"># On garde toutes les colonnes XFoil, on ajoute les prédictions</span>
+    <span class="n">cols_ml</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;naca&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;Re&quot;</span><span class="p">,</span> <span class="s2">&quot;CL&quot;</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">]</span>
+    <span class="n">df_merge</span> <span class="o">=</span> <span class="n">df_xfoil</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+        <span class="n">df_ml</span><span class="p">[</span><span class="n">cols_ml</span><span class="p">],</span>
+        <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;naca&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;Re&quot;</span><span class="p">],</span>
+        <span class="n">suffixes</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;_xfoil&quot;</span><span class="p">,</span> <span class="s2">&quot;_ml&quot;</span><span class="p">)</span>
+    <span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">df_merge</span><span class="p">[</span><span class="n">df_merge</span><span class="p">[</span><span class="s2">&quot;converged&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">True</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="TestGeneralisationML">
+<a class="viewcode-back" href="../../tests.html#tests.test_generalisation_ml.TestGeneralisationML">[docs]</a>
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">validation</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TestGeneralisationML</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Évaluation de la capacité du modèle à généraliser hors de sa zone de confort.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TestGeneralisationML.test_generalisation_profils_uiuc">
+<a class="viewcode-back" href="../../tests.html#tests.test_generalisation_ml.TestGeneralisationML.test_generalisation_profils_uiuc">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_generalisation_profils_uiuc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df_predictions</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Vérifie que l&#39;IA performe bien sur des profils réels inconnus (UIUC).&quot;&quot;&quot;</span>
+        
+        <span class="c1"># On sépare le dataset selon la provenance géométrique (NACA vs UIUC)</span>
+        <span class="n">df_naca</span> <span class="o">=</span> <span class="n">df_predictions</span><span class="p">[</span><span class="n">df_predictions</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;naca_grid&quot;</span><span class="p">]</span>
+        <span class="n">df_uiuc</span> <span class="o">=</span> <span class="n">df_predictions</span><span class="p">[</span><span class="n">df_predictions</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;uiuc&quot;</span><span class="p">]</span>
+        
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">df_uiuc</span><span class="o">.</span><span class="n">empty</span><span class="p">,</span> <span class="s2">&quot;Aucun profil UIUC trouvé dans le dataset de test.&quot;</span>
+        
+        <span class="c1"># On calcule l&#39;erreur absolue moyenne du coefficient de portance (CL) pour les deux datasets</span>
+        <span class="n">mae_naca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">df_naca</span><span class="p">[</span><span class="s2">&quot;CL_xfoil&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_naca</span><span class="p">[</span><span class="s2">&quot;CL_ml&quot;</span><span class="p">]))</span>
+        <span class="n">mae_uiuc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">df_uiuc</span><span class="p">[</span><span class="s2">&quot;CL_xfoil&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_uiuc</span><span class="p">[</span><span class="s2">&quot;CL_ml&quot;</span><span class="p">]))</span>
+        
+        <span class="c1"># L&#39;erreur sur les profils réels UIUC ne doit pas dépasser celle des NACA de plus de 0.05</span>
+        <span class="n">tolerance_generalisation</span> <span class="o">=</span> <span class="n">mae_naca</span> <span class="o">+</span> <span class="mf">0.05</span>
+        
+        <span class="k">assert</span> <span class="n">mae_uiuc</span> <span class="o">&lt;=</span> <span class="n">tolerance_generalisation</span><span class="p">,</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Problème d&#39;overfitting détecté ! &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Erreur NACA: </span><span class="si">{</span><span class="n">mae_naca</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> | Erreur UIUC: </span><span class="si">{</span><span class="n">mae_uiuc</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Le modèle a sur-appris les mathématiques NACA et peine sur les profils réels.&quot;</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Projet_Session-master</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">Validation et Tests</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Code du module</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

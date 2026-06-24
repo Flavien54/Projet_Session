@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>main &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=74e33a29"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/translations.js?v=e6b791cb"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Recherche" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Code source de main</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;AeroPredict — Point d&#39;entrée principal du module.</span>
+
+<span class="sd">MGA 802 · Optimisation de profils aérodynamiques assistée par Machine Learning</span>
+
+<span class="sd">Ce script orchestre l&#39;ensemble du pipeline du projet via un menu interactif :</span>
+
+<span class="sd">#. Construction du dataset géométrique (NACA + UIUC, via AeroSandbox) ;</span>
+<span class="sd">#. Enrichissement aérodynamique par XFoil (``CL``, ``CD``, ``CM``) ;</span>
+<span class="sd">#. Entraînement du modèle de Machine Learning (TensorFlow) ;</span>
+<span class="sd">#. Inférence du modèle sur le dataset complet ;</span>
+<span class="sd">#. Audit et rapports PDF du dataset ;</span>
+<span class="sd">#. Lancement du dashboard interactif (Streamlit).</span>
+
+<span class="sd">La configuration (chemins des fichiers, paramètres XFoil) est lue depuis un</span>
+<span class="sd">deck YAML (``deck.yaml`` par défaut), conformément à l&#39;interface utilisateur</span>
+<span class="sd">recommandée dans le cours (Module 9).</span>
+
+<span class="sd">Ce fichier est documenté au format reStructuredText (compatible</span>
+<span class="sd">`Sphinx &lt;https://www.sphinx-doc.org/&gt;`_ et son extension ``autodoc``). Pour</span>
+<span class="sd">générer la documentation HTML, il suffit d&#39;inclure ce module dans la</span>
+<span class="sd">configuration Sphinx (``conf.py``) puis d&#39;exécuter ``sphinx-build``.</span>
+
+<span class="sd">:Usage:</span>
+
+<span class="sd">    .. code-block:: bash</span>
+
+<span class="sd">        python main.py                 # deck.yaml par défaut</span>
+<span class="sd">        python main.py mon_deck.yaml   # deck personnalisé</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+
+
+<div class="viewcode-block" id="LecteurYAML">
+<a class="viewcode-back" href="../main.html#main.LecteurYAML">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LecteurYAML</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Lit et valide le deck de configuration YAML du projet.</span>
+
+<span class="sd">    :ivar file_path: Chemin du fichier YAML à lire.</span>
+<span class="sd">    :vartype file_path: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise le lecteur avec le chemin du fichier de configuration.</span>
+
+<span class="sd">        :param file_path: Chemin du fichier YAML de configuration.</span>
+<span class="sd">        :type file_path: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_path</span> <span class="o">=</span> <span class="n">file_path</span>
+
+<div class="viewcode-block" id="LecteurYAML.read_yaml">
+<a class="viewcode-back" href="../main.html#main.LecteurYAML.read_yaml">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Charge et désérialise le contenu du fichier YAML.</span>
+
+<span class="sd">        :returns: Le contenu du deck sous forme de dictionnaire Python,</span>
+<span class="sd">            tel que produit par ``yaml.safe_load``.</span>
+<span class="sd">        :rtype: dict</span>
+<span class="sd">        :raises FileNotFoundError: Si :attr:`file_path` ne correspond à</span>
+<span class="sd">            aucun fichier existant.</span>
+<span class="sd">        :raises yaml.YAMLError: Si le fichier existe mais n&#39;est pas un</span>
+<span class="sd">            YAML syntaxiquement valide.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Deck YAML introuvable : &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                <span class="s2">&quot;Complétez deck.yaml avec vos paramètres avant de lancer le programme.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_int_input">
+<a class="viewcode-back" href="../main.html#main.get_int_input">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_int_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Demande un entier à l&#39;utilisateur en boucle jusqu&#39;à saisie valide.</span>
+
+<span class="sd">    Toute saisie non convertible en ``int`` (par exemple une chaîne vide</span>
+<span class="sd">    ou du texte) déclenche un message d&#39;erreur et une nouvelle demande,</span>
+<span class="sd">    sans jamais lever d&#39;exception vers l&#39;appelant.</span>
+
+<span class="sd">    :param prompt: Message affiché à l&#39;utilisateur lors de la demande de</span>
+<span class="sd">        saisie (transmis directement à ``input``).</span>
+<span class="sd">    :type prompt: str</span>
+<span class="sd">    :returns: L&#39;entier saisi par l&#39;utilisateur.</span>
+<span class="sd">    :rtype: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Entrée invalide, veuillez saisir un nombre entier.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="AeroPredictApp">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AeroPredictApp</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Application principale AeroPredict : menu interactif du pipeline.</span>
+
+<span class="sd">    Chaque étape du pipeline (construction du dataset, calcul XFoil,</span>
+<span class="sd">    entraînement et application du modèle ML, audit, dashboard) est</span>
+<span class="sd">    encapsulée dans une méthode dédiée. Les dépendances lourdes</span>
+<span class="sd">    (`AeroSandbox &lt;https://aerosandbox.readthedocs.io/&gt;`_, TensorFlow) sont</span>
+<span class="sd">    importées paresseusement (à l&#39;intérieur des méthodes, et non en tête</span>
+<span class="sd">    de module) afin que les étapes ne les nécessitant pas — comme</span>
+<span class="sd">    l&#39;affichage de la configuration ou le lancement du dashboard — restent</span>
+<span class="sd">    utilisables même si ces paquets ne sont pas installés.</span>
+
+<span class="sd">    :ivar config: Dictionnaire de configuration complet issu du deck</span>
+<span class="sd">        YAML.</span>
+<span class="sd">    :vartype config: dict</span>
+<span class="sd">    :ivar chemins: Sous-section ``&quot;chemins&quot;`` de :attr:`config` (chemins</span>
+<span class="sd">        des fichiers d&#39;entrée/sortie du pipeline) ; dictionnaire vide si</span>
+<span class="sd">        absente du deck.</span>
+<span class="sd">    :vartype chemins: dict</span>
+<span class="sd">    :ivar mode_test: Indique si le pipeline doit s&#39;exécuter en mode</span>
+<span class="sd">        test réduit (par exemple, nombre de profils limité lors de la</span>
+<span class="sd">        construction du dataset). Lu depuis la clé ``&quot;mode_test&quot;`` du</span>
+<span class="sd">        deck, ``False`` par défaut.</span>
+<span class="sd">    :vartype mode_test: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise l&#39;application à partir de la configuration chargée.</span>
+
+<span class="sd">        :param config: Dictionnaire de configuration issu du deck YAML</span>
+<span class="sd">            (typiquement produit par :meth:`LecteurYAML.read_yaml`).</span>
+<span class="sd">        :type config: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chemins</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;chemins&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode_test</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mode_test&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+    <span class="c1"># ── Étapes du pipeline ───────────────────────────────────────</span>
+
+<div class="viewcode-block" id="AeroPredictApp.construire_dataset">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.construire_dataset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">construire_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 1 — génère le dataset géométrique NACA + UIUC.</span>
+
+<span class="sd">        Délègue la construction à</span>
+<span class="sd">        :class:`data_profils.DatasetBuilder` (import paresseux, car cette</span>
+<span class="sd">        classe dépend d&#39;AeroSandbox). En :attr:`mode_test`, le nombre de</span>
+<span class="sd">        profils générés est limité à 10 afin d&#39;accélérer les itérations</span>
+<span class="sd">        de développement.</span>
+
+<span class="sd">        :returns: Rien. En cas d&#39;absence d&#39;AeroSandbox, affiche un</span>
+<span class="sd">            message d&#39;aide à l&#39;installation et retourne sans lever</span>
+<span class="sd">            d&#39;exception (l&#39;étape est simplement ignorée).</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">data_profils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DatasetBuilder</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  AeroSandbox requis pour cette étape : </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Installation : pip install aerosandbox&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">builder</span> <span class="o">=</span> <span class="n">DatasetBuilder</span><span class="p">(</span>
+            <span class="n">output_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chemins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dataset_geometrie&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset_profil.csv&quot;</span><span class="p">),</span>
+            <span class="n">max_profils</span><span class="o">=</span><span class="mi">10</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_test</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">build</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="AeroPredictApp.enrichir_xfoil">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.enrichir_xfoil">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">enrichir_xfoil</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 2 — enrichit le dataset géométrique avec les coefficients XFoil.</span>
+
+<span class="sd">        Lit le chemin de l&#39;exécutable XFoil ainsi que le nombre de cœurs</span>
+<span class="sd">        à utiliser pour la parallélisation depuis la section ``&quot;xfoil&quot;``</span>
+<span class="sd">        du deck YAML (clés ``&quot;executable&quot;`` et ``&quot;max_coeurs&quot;``), puis</span>
+<span class="sd">        délègue le calcul à</span>
+<span class="sd">        :class:`calcul_Xfoil.XFoilDatasetBuilder` (import paresseux, car</span>
+<span class="sd">        cette classe dépend d&#39;AeroSandbox pour piloter XFoil).</span>
+
+<span class="sd">        :returns: Rien. Affiche un message d&#39;erreur et retourne sans</span>
+<span class="sd">            lever d&#39;exception si AeroSandbox n&#39;est pas installé ou si</span>
+<span class="sd">            l&#39;exécutable XFoil configuré est introuvable sur le disque.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">calcul_Xfoil</span><span class="w"> </span><span class="kn">import</span> <span class="n">XFoilDatasetBuilder</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  AeroSandbox requis pour cette étape : </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">xfoil_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;xfoil&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">xfoil_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Exécutable XFoil introuvable : </span><span class="si">{</span><span class="n">xfoil_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;executable&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Vérifiez le chemin &#39;xfoil: executable&#39; dans le deck YAML.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">builder</span> <span class="o">=</span> <span class="n">XFoilDatasetBuilder</span><span class="p">(</span>
+            <span class="n">input_csv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chemins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dataset_geometrie&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset_profil.csv&quot;</span><span class="p">),</span>
+            <span class="n">output_csv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chemins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dataset_xfoil&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset_aeroXfoil.csv&quot;</span><span class="p">),</span>
+            <span class="n">max_cores</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">xfoil_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_coeurs&quot;</span><span class="p">,</span> <span class="mi">8</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">build</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="AeroPredictApp.entrainer_modele">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.entrainer_modele">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">entrainer_modele</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 3 — entraîne le réseau de neurones multi-tâches.</span>
+
+<span class="sd">        Délègue l&#39;exécution au script externe ``modele_ML.py`` via</span>
+<span class="sd">        :meth:`_lancer_script`, dans un sous-processus Python séparé</span>
+<span class="sd">        (et non par import direct), afin d&#39;isoler l&#39;empreinte mémoire de</span>
+<span class="sd">        TensorFlow du reste de l&#39;application.</span>
+
+<span class="sd">        :returns: Rien.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lancer_script</span><span class="p">(</span><span class="s2">&quot;modele_ML.py&quot;</span><span class="p">,</span> <span class="n">besoin</span><span class="o">=</span><span class="s2">&quot;TensorFlow&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AeroPredictApp.appliquer_modele">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.appliquer_modele">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">appliquer_modele</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 4 — applique le modèle ML entraîné sur le dataset complet.</span>
+
+<span class="sd">        Délègue l&#39;exécution au script externe</span>
+<span class="sd">        ``Application_modele_ML.py`` via :meth:`_lancer_script`, qui</span>
+<span class="sd">        génère typiquement le fichier de prédictions consommé ensuite</span>
+<span class="sd">        par le dashboard (voir ``CSV_ML`` dans ``dashboard.py``).</span>
+
+<span class="sd">        :returns: Rien.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lancer_script</span><span class="p">(</span><span class="s2">&quot;Application_modele_ML.py&quot;</span><span class="p">,</span> <span class="n">besoin</span><span class="o">=</span><span class="s2">&quot;TensorFlow&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AeroPredictApp.auditer_dataset">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.auditer_dataset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">auditer_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 5 — génère les rapports PDF d&#39;audit du dataset XFoil.</span>
+
+<span class="sd">        Délègue l&#39;analyse à la fonction</span>
+<span class="sd">        :func:`audit_dataset.audit_dataset`, en lui passant le chemin du</span>
+<span class="sd">        dataset XFoil (clé ``&quot;dataset_xfoil&quot;`` du deck) et le répertoire</span>
+<span class="sd">        de sortie des rapports (clé ``&quot;rapports_audit&quot;``, par défaut</span>
+<span class="sd">        ``&quot;audit_reports&quot;``).</span>
+
+<span class="sd">        :returns: Rien. Affiche un message d&#39;erreur et retourne sans</span>
+<span class="sd">            lever d&#39;exception si le dataset XFoil configuré est</span>
+<span class="sd">            introuvable sur le disque.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">audit_dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">audit_dataset</span>
+
+        <span class="n">fichier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chemins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dataset_xfoil&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset_aeroXfoil.csv&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fichier</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Dataset introuvable : </span><span class="si">{</span><span class="n">fichier</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">audit_dataset</span><span class="p">(</span><span class="n">fichier</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chemins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;rapports_audit&quot;</span><span class="p">,</span> <span class="s2">&quot;audit_reports&quot;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="AeroPredictApp.lancer_dashboard">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.lancer_dashboard">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lancer_dashboard</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Étape 6 — démarre le dashboard Streamlit dans le navigateur.</span>
+
+<span class="sd">        Exécute ``streamlit run dashboard.py`` dans un sous-processus</span>
+<span class="sd">        bloquant (la méthode ne retourne qu&#39;une fois le serveur</span>
+<span class="sd">        Streamlit arrêté, par exemple via ``Ctrl+C``).</span>
+
+<span class="sd">        :returns: Rien.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Lancement du dashboard (Ctrl+C pour arrêter)...&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;streamlit&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">,</span> <span class="s2">&quot;dashboard.py&quot;</span><span class="p">],</span>
+            <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ── Utilitaires ──────────────────────────────────────────────</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_lancer_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">besoin</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exécute un script Python du pipeline dans un sous-processus.</span>
+
+<span class="sd">        Utilise ``subprocess.run`` avec l&#39;interpréteur courant</span>
+<span class="sd">        (``sys.executable``), garantissant l&#39;exécution dans le même</span>
+<span class="sd">        environnement (et donc le même ``virtualenv``/``conda env``) que</span>
+<span class="sd">        le processus appelant. Le code de retour est inspecté pour</span>
+<span class="sd">        signaler une éventuelle erreur, sans pour autant interrompre le</span>
+<span class="sd">        menu principal.</span>
+
+<span class="sd">        :param script: Nom (ou chemin) du fichier Python à exécuter.</span>
+<span class="sd">        :type script: str</span>
+<span class="sd">        :param besoin: Nom de la dépendance principale requise par ce</span>
+<span class="sd">            script, utilisé uniquement à des fins d&#39;affichage dans les</span>
+<span class="sd">            messages utilisateur.</span>
+<span class="sd">        :type besoin: str</span>
+<span class="sd">        :returns: Rien.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Exécution de </span><span class="si">{</span><span class="n">script</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">besoin</span><span class="si">}</span><span class="s2"> requis)...&quot;</span><span class="p">)</span>
+        <span class="n">resultat</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">script</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultat</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  </span><span class="si">{</span><span class="n">script</span><span class="si">}</span><span class="s2"> s&#39;est terminé avec une erreur &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;(code </span><span class="si">{</span><span class="n">resultat</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">). </span><span class="si">{</span><span class="n">besoin</span><span class="si">}</span><span class="s2"> est-il installé ?&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AeroPredictApp.afficher_configuration">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.afficher_configuration">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">afficher_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Affiche dans la console les paramètres du deck YAML chargé.</span>
+
+<span class="sd">        Parcourt :attr:`config` à un seul niveau d&#39;imbrication : les</span>
+<span class="sd">        valeurs de type ``dict`` (sections, par exemple ``&quot;chemins&quot;`` ou</span>
+<span class="sd">        ``&quot;xfoil&quot;``) sont affichées clé par clé avec une indentation</span>
+<span class="sd">        supplémentaire, les autres valeurs sont affichées directement.</span>
+<span class="sd">        Cette fonction permet à l&#39;utilisateur de valider visuellement la</span>
+<span class="sd">        configuration avant de lancer une étape potentiellement longue</span>
+<span class="sd">        du pipeline.</span>
+
+<span class="sd">        :returns: Rien.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Configuration chargée :&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">section</span><span class="p">,</span> <span class="n">valeurs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">valeurs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">section</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">cle</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">valeurs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      </span><span class="si">{</span><span class="n">cle</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">section</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">valeurs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ── Boucle principale ────────────────────────────────────────</span>
+
+    <span class="c1">#: Texte du menu interactif affiché à chaque itération de</span>
+    <span class="c1">#: :meth:`run`. Les numéros listés ici doivent rester synchronisés</span>
+    <span class="c1">#: avec les clés du dictionnaire ``actions`` défini dans :meth:`run`.</span>
+    <span class="n">MENU</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">══════════════════════════════════════════════════════</span>
+<span class="s2">  AeroPredict — Pipeline aérodynamique + Machine Learning</span>
+<span class="s2">══════════════════════════════════════════════════════</span>
+<span class="s2">  1. Construire le dataset géométrique (AeroSandbox)</span>
+<span class="s2">  2. Enrichir le dataset via XFoil (CL, CD, CM)</span>
+<span class="s2">  3. Entraîner le modèle ML (TensorFlow)</span>
+<span class="s2">  4. Appliquer le modèle ML (prédictions)</span>
+<span class="s2">  5. Auditer le dataset (rapports PDF)</span>
+<span class="s2">  6. Lancer le dashboard interactif (Streamlit)</span>
+<span class="s2">  7. Afficher la configuration</span>
+<span class="s2">  0. Quitter</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="AeroPredictApp.run">
+<a class="viewcode-back" href="../main.html#main.AeroPredictApp.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exécute la boucle du menu interactif principal.</span>
+
+<span class="sd">        Affiche :data:`MENU`, demande un choix entier via</span>
+<span class="sd">        :func:`get_int_input`, puis route vers la méthode d&#39;étape</span>
+<span class="sd">        correspondante (table de dispatch ``actions``). La boucle se</span>
+<span class="sd">        poursuit indéfiniment jusqu&#39;à ce que l&#39;utilisateur saisisse</span>
+<span class="sd">        ``0`` (sortie normale) ; tout choix hors de l&#39;intervalle ``[0,</span>
+<span class="sd">        7]`` redemande simplement une saisie sans interrompre la boucle.</span>
+
+<span class="sd">        :returns: Rien. Cette méthode ne retourne que lorsque</span>
+<span class="sd">            l&#39;utilisateur choisit de quitter (option ``0``).</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">1</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">construire_dataset</span><span class="p">,</span>
+            <span class="mi">2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">enrichir_xfoil</span><span class="p">,</span>
+            <span class="mi">3</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">entrainer_modele</span><span class="p">,</span>
+            <span class="mi">4</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">appliquer_modele</span><span class="p">,</span>
+            <span class="mi">5</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auditer_dataset</span><span class="p">,</span>
+            <span class="mi">6</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lancer_dashboard</span><span class="p">,</span>
+            <span class="mi">7</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">afficher_configuration</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MENU</span><span class="p">)</span>
+            <span class="n">choix</span> <span class="o">=</span> <span class="n">get_int_input</span><span class="p">(</span><span class="s2">&quot;  Votre choix : &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">choix</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Au revoir !&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="n">actions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">choix</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">action</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Choix invalide, options 0 à 7.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">action</span><span class="p">()</span></div>
+</div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># Le chemin du deck YAML peut être surchargé en argument de ligne de</span>
+    <span class="c1"># commande (ex. &quot;python main.py mon_deck.yaml&quot;) ; &quot;deck.yaml&quot; est</span>
+    <span class="c1"># utilisé par défaut.</span>
+    <span class="n">deck_path</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;deck.yaml&quot;</span>
+
+    <span class="n">lecteur</span> <span class="o">=</span> <span class="n">LecteurYAML</span><span class="p">(</span><span class="n">deck_path</span><span class="p">)</span>
+    <span class="n">configuration</span> <span class="o">=</span> <span class="n">lecteur</span><span class="o">.</span><span class="n">read_yaml</span><span class="p">()</span>
+
+    <span class="n">app</span> <span class="o">=</span> <span class="n">AeroPredictApp</span><span class="p">(</span><span class="n">configuration</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">afficher_configuration</span><span class="p">()</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Projet_Session-master</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tests.html">Validation et Tests ML</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Code du module</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

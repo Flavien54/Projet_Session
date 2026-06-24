@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tests.test_sensibility_ml &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=74e33a29"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/translations.js?v=e6b791cb"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Recherche" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Code source de tests.test_sensibility_ml</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Ce test simule les incertitudes de fabrication réelles.</span>
+<span class="sd">On fait varier des paramètres géométriques des profils </span>
+<span class="sd">(épaisseur, cambrure, rayon du bord d&#39;attaque) de ±2%. </span>
+<span class="sd">L&#39;objectif est de vérifier que l&#39;IA reste</span>
+<span class="sd">stable face à ces variations et continue de prédire correctement </span>
+<span class="sd">les coefficients aérodynamiques sans diverger.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">tf</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="c1"># === CHEMINS ===</span>
+<span class="n">ROOT</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">DATASET_PATH</span> <span class="o">=</span> <span class="n">ROOT</span> <span class="o">/</span> <span class="s2">&quot;dataset_aeroXfoil.csv&quot;</span>
+<span class="n">MODEL_PATH</span> <span class="o">=</span> <span class="n">ROOT</span> <span class="o">/</span> <span class="s2">&quot;naca_multitask_model.keras&quot;</span>
+<span class="n">PREP_PATH</span> <span class="o">=</span> <span class="n">ROOT</span> <span class="o">/</span> <span class="s2">&quot;preprocessor.pkl&quot;</span>
+<span class="c1"># =======================</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">modele_ML</span><span class="w"> </span><span class="kn">import</span> <span class="n">NACAAeroPreprocessor</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s1">&#39;__main__&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">NACAAeroPreprocessor</span> <span class="o">=</span> <span class="n">NACAAeroPreprocessor</span>
+        
+<div class="viewcode-block" id="pipeline_ia">
+<a class="viewcode-back" href="../../tests.html#tests.test_sensibility_ml.pipeline_ia">[docs]</a>
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;module&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">pipeline_ia</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Charge le modèle, le préprocesseur et un échantillon de données.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">tf</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;TensorFlow est requis pour exécuter ce test.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">MODEL_PATH</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">PREP_PATH</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATASET_PATH</span><span class="p">)):</span>
+        <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;Fichiers du modèle ou dataset introuvables. Lancez l&#39;entraînement d&#39;abord.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Chargement du préprocesseur</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">PREP_PATH</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">preprocessor</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    
+    <span class="c1"># Chargement du modèle Keras</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">MODEL_PATH</span><span class="p">)</span>
+    
+    <span class="c1"># On charge un échantillon représentatif (ici 1000 points) pour garder un test rapide</span>
+    <span class="n">df_sample</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">DATASET_PATH</span><span class="p">)</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">preprocessor</span><span class="p">,</span> <span class="n">df_sample</span></div>
+
+
+
+<div class="viewcode-block" id="TestRobustesseBruit">
+<a class="viewcode-back" href="../../tests.html#tests.test_sensibility_ml.TestRobustesseBruit">[docs]</a>
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">validation</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TestRobustesseBruit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Évaluation de la stabilité du réseau de neurones face aux incertitudes d&#39;usinage.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TestRobustesseBruit.test_sensibilite_bruit_geometrique">
+<a class="viewcode-back" href="../../tests.html#tests.test_sensibility_ml.TestRobustesseBruit.test_sensibilite_bruit_geometrique">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_sensibilite_bruit_geometrique</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_ia</span><span class="p">):</span>
+        <span class="n">model</span><span class="p">,</span> <span class="n">preprocessor</span><span class="p">,</span> <span class="n">df_orig</span> <span class="o">=</span> <span class="n">pipeline_ia</span>
+        
+        <span class="c1"># Sélection des caractéristiques géométriques à faire varier (±2% d&#39;erreur)</span>
+        <span class="n">features_a_bruiter</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;camber&quot;</span><span class="p">,</span> <span class="s2">&quot;LE_radius&quot;</span><span class="p">]</span>
+        
+        <span class="c1"># Création du dataset avec bruit</span>
+        <span class="n">df_bruit</span> <span class="o">=</span> <span class="n">df_orig</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span> <span class="c1"># Pour des tests reproductibles</span>
+        
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">features_a_bruiter</span><span class="p">:</span>
+            <span class="c1"># Multiplicateur aléatoire entre 0.98 et 1.02</span>
+            <span class="n">bruit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.98</span><span class="p">,</span> <span class="mf">1.02</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">df_bruit</span><span class="p">))</span>
+            <span class="n">df_bruit</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_bruit</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">*</span> <span class="n">bruit</span>
+            
+        <span class="c1"># profil parfait</span>
+        <span class="n">X_orig</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">df_orig</span><span class="p">)</span>
+        <span class="n">preds_orig_scaled</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_orig</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c1"># profil avec variation géométrique</span>
+        <span class="n">X_bruit</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">df_bruit</span><span class="p">)</span>
+        <span class="n">preds_bruit_scaled</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_bruit</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c1"># On définit des tolérances pour chaque coefficient aérodynamique</span>
+        <span class="n">seuils_tolerance</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;CL&quot;</span><span class="p">:</span> <span class="mf">0.025</span><span class="p">,</span>  <span class="c1"># Le CL ne doit pas varier de plus de 0.025 en moyenne</span>
+            <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="mf">0.003</span><span class="p">,</span>  <span class="c1"># Le CD ne doit pas varier de plus de 0.003 en moyenne</span>
+            <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="mf">0.010</span>   <span class="c1"># Moment de tangage ne doit pas varier de plus de 0.010 en moyenne</span>
+        <span class="p">}</span>
+        
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">coef</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s2">&quot;CL&quot;</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">]):</span>
+            <span class="n">val_orig</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">inverse_transform_target</span><span class="p">(</span><span class="n">preds_orig_scaled</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">coef</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="n">val_bruit</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">inverse_transform_target</span><span class="p">(</span><span class="n">preds_bruit_scaled</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">coef</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            
+            <span class="c1"># Calcul de la variation absolue moyenne causée par les variations</span>
+            <span class="n">variation_moyenne</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">val_orig</span> <span class="o">-</span> <span class="n">val_bruit</span><span class="p">))</span>
+            
+            <span class="c1"># Le test échoue si la variation moyenne dépasse le seuil toléré</span>
+            <span class="k">assert</span> <span class="n">variation_moyenne</span> <span class="o">&lt;</span> <span class="n">seuils_tolerance</span><span class="p">[</span><span class="n">coef</span><span class="p">],</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Instabilité critique détectée sur </span><span class="si">{</span><span class="n">coef</span><span class="si">}</span><span class="s2"> ! &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Une variation géométrique de ±2% a causé un écart moyen de </span><span class="si">{</span><span class="n">variation_moyenne</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(Tolérance max: </span><span class="si">{</span><span class="n">seuils_tolerance</span><span class="p">[</span><span class="n">coef</span><span class="p">]</span><span class="si">}</span><span class="s2">). Le modèle sur-apprend le bruit.&quot;</span>
+            <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Projet_Session-master</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">Validation et Tests</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Code du module</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
