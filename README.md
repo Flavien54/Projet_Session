@@ -11,7 +11,7 @@
 | Membre | Code permanent | Contribution principale |
 |---|---|---|
 | **Flavien Blanchard** | BLAF63330301 | Pipeline XFoil, architecture du réseau de neurones |
-| **Milissa Mechref** | MECM76290102 | Validation, revue de code, dashboard Streamlit |
+| **Milissa Mechref** | MECM76290102 | Validation, revue de code, dashboard Streamlit, documentation |
 | **Vincent Condette** | CONV76330301 | Dataset géométrique, tests, documentation |
 
 ---
