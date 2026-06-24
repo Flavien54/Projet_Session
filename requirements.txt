@@ -26,3 +26,6 @@ PyYAML              # module "yaml" (lecture de deck.yaml)
 
 # --- Tests ---
 pytest
+
+# --- Documentation (Sphinx) ---
+sphinx              # inclut autodoc, napoleon, viewcode et le thème alabaster
