@@ -265,6 +265,8 @@ pytest tests/ -v
 
 ## Documentation
 
+> 📖 **[Ouvrir la documentation AeroPredict](docs/build/html/index.html)** — il suffit de cliquer, la doc HTML est déjà générée (aucune commande à lancer).
+
 Le code est documenté selon la convention **Sphinx (reStructuredText)** vue au
 Module 10a : chaque fonction/classe possède une docstring avec les champs
 `:param:`, `:type:`, `:return:`, `:rtype:` et `:raises:`.
@@ -284,7 +286,10 @@ def add_numbers(a, b):
     return a + b
 ```
 
-### Générer la documentation HTML
+### (Optionnel) Régénérer la documentation HTML
+
+> La doc est déjà construite dans `docs/build/html/`. Ces étapes ne servent qu'à
+> la **mettre à jour** après une modification des docstrings/du code.
 
 ```bash
 # 1. Installer Sphinx
@@ -301,9 +306,11 @@ python -m sphinx.ext.apidoc -f -o docs/source . docs tests
 cd docs
 python -m sphinx -b html source build/html
 
-# 5. Ouvrir le résultat
+# 5. Ouvrir le résultat (clic direct)
 docs/build/html/index.html
 ```
+
+➡️ **[Cliquer ici pour ouvrir `docs/build/html/index.html`](docs/build/html/index.html)**
 
 `docs/source/conf.py` active l'extension `sphinx.ext.autodoc` et pointe
 (`sys.path`) vers la racine du dépôt pour importer les modules. `docs/build/`
