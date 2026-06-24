@@ -5,16 +5,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>modele_ML module &#8212; Documentation AeroPredict 1.0</title>
+    <title>modele_ML module &#8212; Documentation AeroPredict 2026</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/translations.js?v=e6b791cb"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Validation et Tests" href="tests.html" />
     <link rel="prev" title="main module" href="main.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -37,7 +38,7 @@
 <span id="modele-ml-module"></span><h1>modele_ML module<a class="headerlink" href="#module-modele_ML" title="Lien vers cette rubrique">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="modele_ML.NACAAeroPreprocessor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">modele_ML.</span></span><span class="sig-name descname"><span class="pre">NACAAeroPreprocessor</span></span><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor" title="Lien vers cette définition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">modele_ML.</span></span><span class="sig-name descname"><span class="pre">NACAAeroPreprocessor</span></span><a class="reference internal" href="_modules/modele_ML.html#NACAAeroPreprocessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Prétraitement des données aérodynamiques NACA pour l’apprentissage multi-tâches.</p>
 <p>Ce préprocesseur gère l’encodage des variables catégorielles (naca, source),
@@ -72,7 +73,7 @@ la normalisation des variables continues et la standardisation des cibles.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="modele_ML.NACAAeroPreprocessor.fit_transform">
-<span class="sig-name descname"><span class="pre">fit_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.fit_transform" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fit_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/modele_ML.html#NACAAeroPreprocessor.fit_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.fit_transform" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Ajuste le préprocesseur et transforme les données.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Paramètres<span class="colon">:</span></dt>
@@ -105,7 +106,7 @@ dictionnaire des cibles standardisées pour CL, CD, CM.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="modele_ML.NACAAeroPreprocessor.inverse_transform_target">
-<span class="sig-name descname"><span class="pre">inverse_transform_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_scaled</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.inverse_transform_target" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">inverse_transform_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_scaled</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/modele_ML.html#NACAAeroPreprocessor.inverse_transform_target"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.inverse_transform_target" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Inverse la normalisation d’une colonne cible.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Paramètres<span class="colon">:</span></dt>
@@ -125,7 +126,7 @@ dictionnaire des cibles standardisées pour CL, CD, CM.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="modele_ML.NACAAeroPreprocessor.transform">
-<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.transform" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/modele_ML.html#NACAAeroPreprocessor.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#modele_ML.NACAAeroPreprocessor.transform" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Transforme les données avec le préprocesseur déjà ajusté.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Paramètres<span class="colon">:</span></dt>
@@ -147,7 +148,7 @@ dictionnaire des cibles standardisées pour CL, CD, CM.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="modele_ML.NACAMultiTaskModel">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">modele_ML.</span></span><span class="sig-name descname"><span class="pre">NACAMultiTaskModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0005</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#modele_ML.NACAMultiTaskModel" title="Lien vers cette définition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">modele_ML.</span></span><span class="sig-name descname"><span class="pre">NACAMultiTaskModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0005</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/modele_ML.html#NACAMultiTaskModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#modele_ML.NACAMultiTaskModel" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Modèle de réseau de neurones multi-tâches pour la prédiction des coefficients aérodynamiques.</p>
 <p>Ce modèle prédit simultanément CL (coefficient de portance),
@@ -191,9 +192,9 @@ CD (coefficient de traînée) et CM (coefficient de moment).</p>
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Modules de AeroPredict:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="calcul_Xfoil.html">calcul_Xfoil module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dashboard.html">dashboard module</a></li>
@@ -203,13 +204,18 @@ CD (coefficient de traînée) et CM (coefficient de moment).</p>
 </ul>
 </li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Validation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">Validation et Tests</a></li>
+</ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-  <li><a href="modules.html">Projet_Session</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
       <li>Previous: <a href="main.html" title="Chapitre précédent">main module</a></li>
+      <li>Next: <a href="tests.html" title="Chapitre suivant">Validation et Tests</a></li>
   </ul></li>
   </ul></li>
 </ul>
@@ -227,10 +233,10 @@ CD (coefficient de traînée) et CM (coefficient de moment).</p>
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &#169;2026, Flavien Blanchard, Milissa Mechref, Vincent Condette.
+      &#169;2026, Melissa Flavien Vincent.
       
       |
-      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
       &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
       
       |

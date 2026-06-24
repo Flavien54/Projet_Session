@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>modele_ML &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=74e33a29"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/translations.js?v=e6b791cb"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Recherche" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Code source de modele_ML</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">keras</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">keras</span><span class="w"> </span><span class="kn">import</span> <span class="n">layers</span><span class="p">,</span> <span class="n">callbacks</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span><span class="p">,</span> <span class="n">LabelEncoder</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">set_seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+
+
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<span class="c1"># 1. PRÉPROCESSEUR DU JEU DE DONNÉES</span>
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<div class="viewcode-block" id="NACAAeroPreprocessor">
+<a class="viewcode-back" href="../modele_ML.html#modele_ML.NACAAeroPreprocessor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NACAAeroPreprocessor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Prétraitement des données aérodynamiques NACA pour l&#39;apprentissage multi-tâches.</span>
+
+<span class="sd">    Ce préprocesseur gère l&#39;encodage des variables catégorielles (naca, source),</span>
+<span class="sd">    la normalisation des variables continues et la standardisation des cibles.</span>
+
+<span class="sd">    :ivar CATEGORICAL_COLS: Noms des colonnes catégorielles du dataset.</span>
+<span class="sd">    :vartype CATEGORICAL_COLS: list</span>
+<span class="sd">    :ivar CONTINUOUS_COLS: Noms des colonnes continues à normaliser.</span>
+<span class="sd">    :vartype CONTINUOUS_COLS: list</span>
+<span class="sd">    :ivar TARGET_COLS: Noms des colonnes cibles (CL, CD, CM).</span>
+<span class="sd">    :vartype TARGET_COLS: list</span>
+<span class="sd">    :ivar label_encoders: Dictionnaire des encodeurs LabelEncoder pour chaque colonne catégorielle.</span>
+<span class="sd">    :vartype label_encoders: dict</span>
+<span class="sd">    :ivar feature_scaler: Scaler pour les caractéristiques continues.</span>
+<span class="sd">    :vartype feature_scaler: StandardScaler</span>
+<span class="sd">    :ivar target_scalers: Dictionnaire des scalers pour chaque colonne cible.</span>
+<span class="sd">    :vartype target_scalers: dict</span>
+<span class="sd">    :ivar is_fitted: Indique si le préprocesseur a été ajusté sur les données.</span>
+<span class="sd">    :vartype is_fitted: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">CATEGORICAL_COLS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;naca&quot;</span><span class="p">,</span> <span class="s2">&quot;source&quot;</span><span class="p">]</span>
+    <span class="n">CONTINUOUS_COLS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;camber&quot;</span><span class="p">,</span> <span class="s2">&quot;x_t&quot;</span><span class="p">,</span> <span class="s2">&quot;x_c&quot;</span><span class="p">,</span> <span class="s2">&quot;LE_radius&quot;</span><span class="p">,</span> <span class="s2">&quot;TE_angle&quot;</span><span class="p">,</span> <span class="s2">&quot;t_over_xt&quot;</span><span class="p">,</span> <span class="s2">&quot;area&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;Re&quot;</span><span class="p">]</span>
+    <span class="n">TARGET_COLS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CL&quot;</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise le préprocesseur avec les encodeurs et scalers.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_encoders</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">LabelEncoder</span><span class="p">()</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">CATEGORICAL_COLS</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_scalers</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">StandardScaler</span><span class="p">()</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">TARGET_COLS</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="NACAAeroPreprocessor.fit_transform">
+<a class="viewcode-back" href="../modele_ML.html#modele_ML.NACAAeroPreprocessor.fit_transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ajuste le préprocesseur et transforme les données.</span>
+
+<span class="sd">        :param df: DataFrame contenant les données brutes avec toutes les colonnes.</span>
+<span class="sd">        :type df: pd.DataFrame</span>
+<span class="sd">        :return: Tuple ``(X, y_dict)`` où ``X`` est la matrice des</span>
+<span class="sd">            caractéristiques encodées et normalisées, et ``y_dict`` le</span>
+<span class="sd">            dictionnaire des cibles standardisées pour CL, CD, CM.</span>
+<span class="sd">        :rtype: tuple</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode_features</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">fit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">y_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">TARGET_COLS</span><span class="p">:</span>
+            <span class="n">y_dict</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_scalers</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">df</span><span class="p">[[</span><span class="n">col</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">X</span><span class="p">,</span> <span class="n">y_dict</span></div>
+
+
+<div class="viewcode-block" id="NACAAeroPreprocessor.transform">
+<a class="viewcode-back" href="../modele_ML.html#modele_ML.NACAAeroPreprocessor.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transforme les données avec le préprocesseur déjà ajusté.</span>
+
+<span class="sd">        :param df: DataFrame contenant les données brutes.</span>
+<span class="sd">        :type df: pd.DataFrame</span>
+<span class="sd">        :return: Matrice des caractéristiques encodées et normalisées.</span>
+<span class="sd">        :rtype: np.ndarray</span>
+<span class="sd">        :raises AssertionError: Si le préprocesseur n&#39;a pas été ajusté avec fit_transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_fitted</span><span class="p">,</span> <span class="s2">&quot;Le préprocesseur doit d&#39;abord être ajusté (fit).&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode_features</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">fit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NACAAeroPreprocessor.inverse_transform_target">
+<a class="viewcode-back" href="../modele_ML.html#modele_ML.NACAAeroPreprocessor.inverse_transform_target">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inverse_transform_target</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_scaled</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">col</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Inverse la normalisation d&#39;une colonne cible.</span>
+
+<span class="sd">        :param y_scaled: Valeurs cibles normalisées.</span>
+<span class="sd">        :type y_scaled: np.ndarray</span>
+<span class="sd">        :param col: Nom de la colonne cible (&#39;CL&#39;, &#39;CD&#39; ou &#39;CM&#39;).</span>
+<span class="sd">        :type col: str</span>
+<span class="sd">        :return: Valeurs cibles dans l&#39;échelle d&#39;origine.</span>
+<span class="sd">        :rtype: np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_scalers</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">y_scaled</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_encode_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">fit</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode les caractéristiques catégorielles et continues.</span>
+
+<span class="sd">        :param df: DataFrame contenant les données.</span>
+<span class="sd">        :type df: pd.DataFrame</span>
+<span class="sd">        :param fit: Si True, ajuste les encodeurs, sinon utilise les encodeurs existants.</span>
+<span class="sd">        :type fit: bool</span>
+<span class="sd">        :return: Matrice des caractéristiques encodées.</span>
+<span class="sd">        :rtype: np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">encoded_parts</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Encodage des variables catégorielles</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">CATEGORICAL_COLS</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fit</span><span class="p">:</span>
+                <span class="n">enc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_encoders</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">known</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_encoders</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">classes_</span><span class="p">)</span>
+                <span class="n">safe</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">known</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_encoders</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">classes_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">enc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_encoders</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">safe</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">encoded_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">enc</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+
+        <span class="c1"># Normalisation des variables continues</span>
+        <span class="n">cont</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTINUOUS_COLS</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">cont_scaled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_scaler</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span> <span class="k">if</span> <span class="n">fit</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span>
+        <span class="n">encoded_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cont_scaled</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">encoded_parts</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">input_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retourne la dimension de l&#39;espace d&#39;entrée.</span>
+
+<span class="sd">        :return: Nombre total de caractéristiques après encodage.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CATEGORICAL_COLS</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTINUOUS_COLS</span><span class="p">)</span></div>
+
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<span class="c1"># 2. ARCHITECTURE MULTI-TÂCHES PROFONDE</span>
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<div class="viewcode-block" id="NACAMultiTaskModel">
+<a class="viewcode-back" href="../modele_ML.html#modele_ML.NACAMultiTaskModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NACAMultiTaskModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Modèle de réseau de neurones multi-tâches pour la prédiction des coefficients aérodynamiques.</span>
+
+<span class="sd">    Ce modèle prédit simultanément CL (coefficient de portance),</span>
+<span class="sd">    CD (coefficient de traînée) et CM (coefficient de moment).</span>
+
+<span class="sd">    :ivar input_dim: Dimension de l&#39;espace d&#39;entrée.</span>
+<span class="sd">    :vartype input_dim: int</span>
+<span class="sd">    :ivar learning_rate: Taux d&#39;apprentissage pour l&#39;optimiseur Adam.</span>
+<span class="sd">    :vartype learning_rate: float</span>
+<span class="sd">    :ivar model: Modèle Keras compilé.</span>
+<span class="sd">    :vartype model: keras.Model</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">learning_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5e-4</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise le modèle multi-tâches.</span>
+
+<span class="sd">        :param input_dim: Dimension des caractéristiques d&#39;entrée.</span>
+<span class="sd">        :type input_dim: int</span>
+<span class="sd">        :param learning_rate: Taux d&#39;apprentissage (défaut: 5e-4).</span>
+<span class="sd">        :type learning_rate: float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_dim</span> <span class="o">=</span> <span class="n">input_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_expert_branch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_tensor</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construit une branche experte pour une tâche spécifique.</span>
+
+<span class="sd">        :param base_tensor: Tenseur d&#39;entrée provenant du tronc commun.</span>
+<span class="sd">        :type base_tensor: tf.Tensor</span>
+<span class="sd">        :param name: Nom de la branche (CL, CD ou CM).</span>
+<span class="sd">        :type name: str</span>
+<span class="sd">        :return: Tenseur de sortie pour la tâche spécifique.</span>
+<span class="sd">        :rtype: tf.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Première couche dense élargie</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;dense_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_1&quot;</span><span class="p">)(</span><span class="n">base_tensor</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># Deuxième couche avec skip connection</span>
+        <span class="n">x_skip</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;dense_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_2&quot;</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x_skip</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x_skip</span><span class="p">)</span>
+
+        <span class="c1"># Troisième couche</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;dense_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_3&quot;</span><span class="p">)(</span><span class="n">x_skip</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># Connexion résiduelle pour stabiliser les gradients</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">add</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">x_skip</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;res_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Couche de sortie linéaire</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construit l&#39;architecture complète du modèle multi-tâches.</span>
+
+<span class="sd">        :return: Modèle Keras compilé avec les sorties CL, CD, CM.</span>
+<span class="sd">        :rtype: keras.Model</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Entrée du modèle</span>
+        <span class="n">inp</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;features&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Tronc commun partagé (3 couches denses profondes)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;shared_1&quot;</span><span class="p">)(</span><span class="n">inp</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;shared_2&quot;</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;swish&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;shared_3&quot;</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">()(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># Branches expertes pour chaque coefficient aérodynamique</span>
+        <span class="n">out_cl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_expert_branch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;CL&quot;</span><span class="p">)</span>
+        <span class="n">out_cd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_expert_branch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">)</span>
+        <span class="n">out_cm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_expert_branch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Création du modèle</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="n">inp</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">out_cl</span><span class="p">,</span> <span class="n">out_cd</span><span class="p">,</span> <span class="n">out_cm</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NACA_MultiTaskNet_Deep&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Compilation avec l&#39;optimiseur Adam et la perte MSE</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">),</span>
+            <span class="n">loss</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;CL&quot;</span><span class="p">:</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="s2">&quot;mse&quot;</span><span class="p">},</span>
+            <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;CL&quot;</span><span class="p">:</span> <span class="s2">&quot;mae&quot;</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="s2">&quot;mae&quot;</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="s2">&quot;mae&quot;</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<span class="c1"># 3. PIPELINE PRINCIPAL D&#39;ENTRAÎNEMENT</span>
+<span class="c1"># ─────────────────────────────────────────────────────────────────────────────</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pipeline principal d&#39;entraînement du modèle multi-tâches.</span>
+
+<span class="sd">    Ce script charge les données, prétraite les caractéristiques,</span>
+<span class="sd">    entraîne le modèle avec des callbacks d&#39;early stopping et de réduction</span>
+<span class="sd">    du taux d&#39;apprentissage, puis sauvegarde les artefacts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Configuration des chemins de fichiers</span>
+    <span class="n">csv_file_path</span> <span class="o">=</span> <span class="s2">&quot;dataset_aeroXfoil.csv&quot;</span>
+
+    <span class="c1"># Vérification de l&#39;existence du fichier de données</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">csv_file_path</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Le fichier &#39;</span><span class="si">{</span><span class="n">csv_file_path</span><span class="si">}</span><span class="s2">&#39; est introuvable.&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chargement de la base de données entière : </span><span class="si">{</span><span class="n">csv_file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">df_raw</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">csv_file_path</span><span class="p">)</span>
+
+    <span class="c1"># Séparation des ensembles d&#39;entraînement et de test (85% / 15%)</span>
+    <span class="n">df_train</span><span class="p">,</span> <span class="n">df_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">df_raw</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+    <span class="c1"># Initialisation et application du préprocesseur</span>
+    <span class="n">preprocessor</span> <span class="o">=</span> <span class="n">NACAAeroPreprocessor</span><span class="p">()</span>
+    <span class="n">X_train_scaled</span><span class="p">,</span> <span class="n">y_train_dict</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">df_train</span><span class="p">)</span>
+
+    <span class="c1"># Séparation entraînement/validation pour l&#39;early stopping</span>
+    <span class="n">idx_t</span><span class="p">,</span> <span class="n">idx_v</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X_train_scaled</span><span class="p">)),</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+    <span class="n">X_t</span><span class="p">,</span> <span class="n">X_v</span> <span class="o">=</span> <span class="n">X_train_scaled</span><span class="p">[</span><span class="n">idx_t</span><span class="p">],</span> <span class="n">X_train_scaled</span><span class="p">[</span><span class="n">idx_v</span><span class="p">]</span>
+    <span class="n">y_t</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">idx_t</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">y_train_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="n">y_v</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">idx_v</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">y_train_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Création du modèle multi-tâches</span>
+    <span class="n">mt_model</span> <span class="o">=</span> <span class="n">NACAMultiTaskModel</span><span class="p">(</span><span class="n">input_dim</span><span class="o">=</span><span class="n">preprocessor</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">5e-4</span><span class="p">)</span>
+
+    <span class="c1"># Configuration des callbacks pour l&#39;entraînement</span>
+    <span class="n">cbs</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">EarlyStopping</span><span class="p">(</span>
+            <span class="n">monitor</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span>
+            <span class="n">patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>  <span class="c1"># Patience augmentée pour laisser converger</span>
+            <span class="n">restore_best_weights</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">),</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">ReduceLROnPlateau</span><span class="p">(</span>
+            <span class="n">monitor</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span>
+            <span class="n">factor</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>  <span class="c1"># Réduction de moitié du taux d&#39;apprentissage</span>
+            <span class="n">patience</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>  <span class="c1"># Patience avant réduction</span>
+            <span class="n">min_lr</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>  <span class="c1"># Taux d&#39;apprentissage minimum</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Lancement de l&#39;entraînement</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[ML] Lancement de l&#39;apprentissage à haute capacité...&quot;</span><span class="p">)</span>
+    <span class="n">mt_model</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
+        <span class="n">X_t</span><span class="p">,</span> <span class="n">y_t</span><span class="p">,</span>
+        <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">X_v</span><span class="p">,</span> <span class="n">y_v</span><span class="p">),</span>
+        <span class="n">epochs</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>  <span class="c1"># Nombre maximal d&#39;époques</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>  <span class="c1"># Taille de lot pour stabilité</span>
+        <span class="n">callbacks</span><span class="o">=</span><span class="n">cbs</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ─────────────────────────────────────────────────────────────────────────</span>
+    <span class="c1"># 4. EXPORTATION DES ARTIFACTS</span>
+    <span class="c1"># ─────────────────────────────────────────────────────────────────────────</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[EXPORT] Sauvegarde des modèles et configurations...&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Sauvegarde du modèle Keras au format .keras</span>
+    <span class="n">mt_model</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;naca_multitask_model.keras&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Sauvegarde du préprocesseur (scalers et encodeurs) avec pickle</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;preprocessor.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">preprocessor</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Sauvegarde du jeu de test pour analyses ultérieures</span>
+    <span class="n">df_test</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;dataset_test_isolated.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Affichage des confirmations de sauvegarde</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;→ &#39;naca_multitask_model.keras&#39; enregistré.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;→ &#39;preprocessor.pkl&#39; enregistré.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;→ &#39;dataset_test_isolated.csv&#39; enregistré pour l&#39;analyse.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Entraînement terminé avec succès.&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Projet_Session-master</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tests.html">Validation et Tests ML</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Code du module</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

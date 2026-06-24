@@ -1,23 +1,16 @@
-import pandas as pd
-import numpy as np
-import pytest
-import os
-
-"""
-=============================================================================
-TEST DE GÉNÉRALISATION DU MODÈLE MACHINE LEARNING 
-=============================================================================
-1. L'objectif du test est de que l'Intelligence Artificielle n'apprenne pas ses données d'entraînement par cœur sans comprendre la logique.
+""" L'objectif du test est de que l'Intelligence Artificielle n'apprenne pas ses données d'entraînement par cœur sans comprendre la logique.
 - Les profils NACA 4 chiffres sont générés par une équation mathématique stricte.
 - Les profils UIUC sont des profils d'ailes réels, plus complexe.
 
 Le fonctionnement du test :
     On sépare les prédictions en deux groupes (NACA vs UIUC).
     On calcule l'Erreur Absolue Moyenne du CL pour voir de combien l'IA se trompe par rapport à XFoil.
-    L'erreur sur les profils réels (UIUC) ne doit pas dépasser l'erreur sur les profils théoriques de plus d'une marge tolérée de 0.05.
+    L'erreur sur les profils réels (UIUC) ne doit pas dépasser l'erreur sur les profils théoriques de plus d'une marge tolérée de 0.05."""
 
-=============================================================================
-"""
+import pandas as pd
+import numpy as np
+import pytest
+import os
 
 # === CHEMINS ===
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>calcul_Xfoil module &#8212; Documentation AeroPredict 1.0</title>
+    <title>calcul_Xfoil module &#8212; Documentation AeroPredict 2026</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/translations.js?v=e6b791cb"></script>
@@ -114,7 +114,7 @@ et produit un dataset final enrichi des coefficients aérodynamiques (CL, CD, CM
 
 <dl class="py class">
 <dt class="sig sig-object py" id="calcul_Xfoil.XFoilDatasetBuilder">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">XFoilDatasetBuilder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cores</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder" title="Lien vers cette définition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">XFoilDatasetBuilder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cores</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/calcul_Xfoil.html#XFoilDatasetBuilder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Orchestre la parallélisation et la consolidation du jeu de données XFoil.</p>
 <dl class="field-list simple">
@@ -128,7 +128,7 @@ et produit un dataset final enrichi des coefficients aérodynamiques (CL, CD, CM
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="calcul_Xfoil.XFoilDatasetBuilder.build">
-<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder.build" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/calcul_Xfoil.html#XFoilDatasetBuilder.build"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder.build" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Déclenche la création du jeu de données aérodynamique distribué.</p>
 <p>Cette méthode charge les données géométriques, identifie les couples (profil, Reynolds)
 déjà calculés en cas de crash précédent pour assurer une reprise automatique,
@@ -162,7 +162,7 @@ puis distribue la charge de travail sur les différents processus esclaves.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="calcul_Xfoil.compute_profile_re">
-<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">compute_profile_re</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#calcul_Xfoil.compute_profile_re" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">compute_profile_re</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/calcul_Xfoil.html#compute_profile_re"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#calcul_Xfoil.compute_profile_re" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Exécute la routine complète XFoil en cascade pour un unique couple (profil, Reynolds).</p>
 <p>Cette fonction autonome est conçue pour être distribuée via un pool d’exécution de processus.
 Elle applique trois niveaux de résolution (Batch -&gt; Segment de 10 -&gt; Point par point)
@@ -214,9 +214,9 @@ générées pour le DataFrame.</p>
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Modules de AeroPredict:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">calcul_Xfoil module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dashboard.html">dashboard module</a></li>
@@ -226,12 +226,16 @@ générées pour le DataFrame.</p>
 </ul>
 </li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Validation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">Validation et Tests</a></li>
+</ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-  <li><a href="modules.html">Projet_Session</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
       <li>Previous: <a href="audit_dataset.html" title="Chapitre précédent">audit_dataset module</a></li>
       <li>Next: <a href="dashboard.html" title="Chapitre suivant">dashboard module</a></li>
   </ul></li>
@@ -251,10 +255,10 @@ générées pour le DataFrame.</p>
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &#169;2026, Flavien Blanchard, Milissa Mechref, Vincent Condette.
+      &#169;2026, Melissa Flavien Vincent.
       
       |
-      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
       &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
       
       |

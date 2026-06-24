@@ -1,3 +1,10 @@
+"""Ce test simule les incertitudes de fabrication réelles.
+On fait varier des paramètres géométriques des profils 
+(épaisseur, cambrure, rayon du bord d'attaque) de ±2%. 
+L'objectif est de vérifier que l'IA reste
+stable face à ces variations et continue de prédire correctement 
+les coefficients aérodynamiques sans diverger."""
+
 import os
 import pickle
 import sys
@@ -12,29 +19,12 @@ try:
 except ImportError:
     tf = None
 
-"""
-=============================================================================
-TEST DE ROBUSTESSE AU BRUIT (ANALYSE DE SENSIBILITÉ)
-=============================================================================
-
-Ce test simule les incertitudes de fabrication réelles.
-On fait varier des paramètres géométriques des profils 
-(épaisseur, cambrure, rayon du bord d'attaque) de ±2%. 
-L'objectif est de vérifier que l'IA reste
-stable face à ces variations et continue de prédire correctement 
-les coefficients aérodynamiques sans diverger.
-=============================================================================
-"""
 # === CHEMINS ===
 ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = ROOT / "dataset_aeroXfoil.csv"
 MODEL_PATH = ROOT / "naca_multitask_model.keras"
 PREP_PATH = ROOT / "preprocessor.pkl"
 # =======================
-
-# Vérification préliminaire des fichiers
-if not (os.path.exists(MODEL_PATH) and os.path.exists(PREP_PATH) and os.path.exists(DATASET_PATH)):
-    pytest.skip("Fichiers du modèle ou dataset introuvables.", allow_module_level=True)
 
 from modele_ML import NACAAeroPreprocessor
 sys.modules['__main__'].NACAAeroPreprocessor = NACAAeroPreprocessor

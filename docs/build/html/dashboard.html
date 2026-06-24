@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>dashboard module &#8212; Documentation AeroPredict 1.0</title>
+    <title>dashboard module &#8212; Documentation AeroPredict 2026</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/translations.js?v=e6b791cb"></script>
@@ -121,7 +121,7 @@ chaque sortie) sérialisé via <code class="docutils literal notranslate"><span 
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.calculer_metriques">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">calculer_metriques</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_vrai</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#dashboard.calculer_metriques" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">calculer_metriques</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_vrai</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/dashboard.html#calculer_metriques"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.calculer_metriques" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Calcule les métriques de qualité de régression R², MAE et RMSE.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Paramètres<span class="colon">:</span></dt>
@@ -241,7 +241,7 @@ ou si le chargement échoue, retourne <code class="docutils literal notranslate"
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.main">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.main" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.main" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Point d’entrée principal : construit la structure du dashboard et route vers la page choisie.</p>
 <p>Cette fonction orchestre l’application Streamlit dans son ensemble :</p>
 <ol class="arabic simple">
@@ -271,7 +271,7 @@ manquant.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_dataset">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_dataset" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_dataset" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Dataset » : exploration statistique du corpus XFoil.</p>
 <p>Présente des indicateurs globaux (nombre de lignes, de profils
 uniques, de familles, taux de convergence), la répartition des
@@ -301,7 +301,7 @@ convergence).</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_optimisation">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_optimisation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_optimisation" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_optimisation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_optimisation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_optimisation" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Optimisation » : recherche du meilleur profil par finesse.</p>
 <p>Pour un nombre de Reynolds et une plage d’angles d’attaque donnés,
 cette page calcule, pour chaque profil du dataset ML, la finesse
@@ -333,7 +333,7 @@ une traînée quasi nulle).</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_performance">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_performance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_performance" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_performance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_performance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_performance" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Performance ML » : métriques globales du modèle.</p>
 <p>Calcule et affiche, pour chacun des trois coefficients (<code class="docutils literal notranslate"><span class="pre">CL</span></code>,
 <code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code>) : le R², la MAE et la RMSE entre les valeurs XFoil
@@ -357,7 +357,7 @@ superposée en ligne verticale.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_polaires">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_polaires" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_polaires"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_polaires" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Polaires » : comparaison XFoil / ML / Fluent.</p>
 <p>L’utilisateur choisit un profil et un nombre de Reynolds parmi les
 valeurs disponibles dans <code class="docutils literal notranslate"><span class="pre">df_merge</span></code> ; quatre graphiques sont alors
@@ -388,7 +388,7 @@ mise en page des quatre graphiques principaux.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_prediction_ml">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_prediction_ml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_prediction_ml" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_prediction_ml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_prediction_ml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_prediction_ml" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Prédiction ML » : génération de polaires pour un profil arbitraire.</p>
 <p>Cette page permet à l’utilisateur de définir librement les 8
 paramètres géométriques d’un profil (éventuellement pré-remplis à
@@ -430,7 +430,7 @@ une exception.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.page_validation_model">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_validation_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_validation_model" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_validation_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#page_validation_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.page_validation_model" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la page « Validation ML » : analyse fine du comportement du modèle.</p>
 <p>Cette page permet de sélectionner un ou plusieurs profils ainsi
 qu’un nombre de Reynolds, puis présente :</p>
@@ -464,7 +464,7 @@ sélectionné ou si la sélection ne correspond à aucune donnée.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.predire_polaires">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">predire_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alphas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">re_val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">naca_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'naca_grid'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="headerlink" href="#dashboard.predire_polaires" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">predire_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alphas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">re_val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">naca_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'naca_grid'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="reference internal" href="_modules/dashboard.html#predire_polaires"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.predire_polaires" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Prédit la polaire complète (CL, CD, CM, finesse) d’un profil donné.</p>
 <p>Pour chaque angle d’attaque fourni, un vecteur d’entrée est construit
 en concaténant les 8 features géométriques (dans l’ordre imposé par
@@ -502,7 +502,7 @@ lorsque <code class="docutils literal notranslate"><span class="pre">CD</span></
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.re_label">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#dashboard.re_label" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/dashboard.html#re_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.re_label" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Formate un nombre de Reynolds en notation scientifique lisible.</p>
 <p>Le résultat est destiné aux libellés de widgets Streamlit (menus,
 sliders) ; il utilise des exposants Unicode pour un rendu compact.</p>
@@ -523,7 +523,7 @@ simplifier l’affichage (<code class="docutils literal notranslate"><span class
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.re_tick">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_tick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#dashboard.re_tick" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_tick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/dashboard.html#re_tick"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.re_tick" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Formate un nombre de Reynolds pour les étiquettes d’axe Plotly.</p>
 <p>Variante de <a class="reference internal" href="#dashboard.re_label" title="dashboard.re_label"><code class="xref py py-func docutils literal notranslate"><span class="pre">re_label()</span></code></a> produisant un texte pur (sans le préfixe
 <code class="docutils literal notranslate"><span class="pre">&quot;Re</span> <span class="pre">=</span> <span class="pre">&quot;</span></code>), adapté aux étiquettes d’axes catégoriels des graphiques
@@ -543,7 +543,7 @@ en barres.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.render_enhanced_header">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_enhanced_header</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.render_enhanced_header" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_enhanced_header</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/dashboard.html#render_enhanced_header"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.render_enhanced_header" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche le bandeau d’en-tête du dashboard et ses indicateurs clés.</p>
 <p>Le bandeau principal (titre, sous-titre, mention du cours et des
 auteurs) est toujours affiché. Si des DataFrames sont fournis, quatre
@@ -578,7 +578,7 @@ calcul des indicateurs, réservé pour extension future).</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="dashboard.render_sidebar">
-<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_sidebar</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#dashboard.render_sidebar" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_sidebar</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/dashboard.html#render_sidebar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dashboard.render_sidebar" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche la barre latérale stylisée et collecte les choix de navigation.</p>
 <p>La sidebar contient, dans l’ordre : le logo et le titre de
 l’application, le menu de navigation entre les six pages du
@@ -631,9 +631,9 @@ le choix de l’utilisateur.</p></li>
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Modules de AeroPredict:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="calcul_Xfoil.html">calcul_Xfoil module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">dashboard module</a></li>
@@ -643,12 +643,16 @@ le choix de l’utilisateur.</p></li>
 </ul>
 </li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Validation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">Validation et Tests</a></li>
+</ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-  <li><a href="modules.html">Projet_Session</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
       <li>Previous: <a href="calcul_Xfoil.html" title="Chapitre précédent">calcul_Xfoil module</a></li>
       <li>Next: <a href="data_profils.html" title="Chapitre suivant">data_profils module</a></li>
   </ul></li>
@@ -668,10 +672,10 @@ le choix de l’utilisateur.</p></li>
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &#169;2026, Flavien Blanchard, Milissa Mechref, Vincent Condette.
+      &#169;2026, Melissa Flavien Vincent.
       
       |
-      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
       &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
       
       |

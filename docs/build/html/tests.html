@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Validation et Tests &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/translations.js?v=e6b791cb"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="prev" title="modele_ML module" href="modele_ML.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="validation-et-tests">
+<h1>Validation et Tests<a class="headerlink" href="#validation-et-tests" title="Lien vers cette rubrique">¶</a></h1>
+<p>Cette section documente l’ensemble des protocoles garantissant la robustesse physique, la stabilité et la capacité de généralisation du réseau de neurones aérodynamique.</p>
+<section id="generalisation-profils-uiuc">
+<h2>Généralisation (Profils UIUC)<a class="headerlink" href="#generalisation-profils-uiuc" title="Lien vers cette rubrique">¶</a></h2>
+<p>L’objectif du test est de que l’Intelligence Artificielle n’apprenne pas ses données d’entraînement par cœur sans comprendre la logique.
+- Les profils NACA 4 chiffres sont générés par une équation mathématique stricte.
+- Les profils UIUC sont des profils d’ailes réels, plus complexe.</p>
+<dl class="simple">
+<dt>Le fonctionnement du test :</dt><dd><p>On sépare les prédictions en deux groupes (NACA vs UIUC).
+On calcule l’Erreur Absolue Moyenne du CL pour voir de combien l’IA se trompe par rapport à XFoil.
+L’erreur sur les profils réels (UIUC) ne doit pas dépasser l’erreur sur les profils théoriques de plus d’une marge tolérée de 0.05.</p>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_generalisation_ml.</span></span><span class="sig-name descname"><span class="pre">TestGeneralisationML</span></span><a class="reference internal" href="_modules/tests/test_generalisation_ml.html#TestGeneralisationML"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Évaluation de la capacité du modèle à généraliser hors de sa zone de confort.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">pytestmark</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[Mark(name='validation',</span> <span class="pre">args=(),</span> <span class="pre">kwargs={})]</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_generalisation_profils_uiuc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_predictions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_generalisation_ml.html#TestGeneralisationML.test_generalisation_profils_uiuc"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Vérifie que l’IA performe bien sur des profils réels inconnus (UIUC).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_generalisation_ml.</span></span><span class="sig-name descname"><span class="pre">df_predictions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_generalisation_ml.html#df_predictions"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Charge et fusionne les datasets XFoil et ML pour la comparaison.</p>
+</dd></dl>
+
+</section>
+<section id="robustesse-au-bruit-sensibilite">
+<h2>Robustesse au Bruit (Sensibilité)<a class="headerlink" href="#robustesse-au-bruit-sensibilite" title="Lien vers cette rubrique">¶</a></h2>
+<p>Ce test simule les incertitudes de fabrication réelles.
+On fait varier des paramètres géométriques des profils
+(épaisseur, cambrure, rayon du bord d’attaque) de ±2%.
+L’objectif est de vérifier que l’IA reste
+stable face à ces variations et continue de prédire correctement
+les coefficients aérodynamiques sans diverger.</p>
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_sensibility_ml.</span></span><span class="sig-name descname"><span class="pre">TestRobustesseBruit</span></span><a class="reference internal" href="_modules/tests/test_sensibility_ml.html#TestRobustesseBruit"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Évaluation de la stabilité du réseau de neurones face aux incertitudes d’usinage.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">pytestmark</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[Mark(name='validation',</span> <span class="pre">args=(),</span> <span class="pre">kwargs={})]</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_sensibilite_bruit_geometrique</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pipeline_ia</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_sensibility_ml.html#TestRobustesseBruit.test_sensibilite_bruit_geometrique"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_sensibility_ml.</span></span><span class="sig-name descname"><span class="pre">pipeline_ia</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_sensibility_ml.html#pipeline_ia"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Charge le modèle, le préprocesseur et un échantillon de données.</p>
+</dd></dl>
+
+</section>
+<section id="limites-physiques-et-frontieres">
+<h2>Limites Physiques et Frontières<a class="headerlink" href="#limites-physiques-et-frontieres" title="Lien vers cette rubrique">¶</a></h2>
+<p>Évaluer la robustesse de l’Intelligence Artificielle aux frontières de son
+domaine d’entraînement, en ciblant les cas extrêmes.</p>
+<dl class="simple">
+<dt>On choisit :</dt><dd><ul class="simple">
+<li><p>Des angles d’attaque très élevés (alpha &gt;= 15°).</p></li>
+<li><p>Le plus bas nombre de Reynolds simulé, là où les effets de viscosité dominent fortement l’écoulement.</p></li>
+<li><p>Les profils les plus épais (épaisseur t &gt;= 20%)</p></li>
+</ul>
+</dd>
+</dl>
+<p>Pour chaque zone limite, on calcule l’erreur absolue moyenne entre les prédictions et la réalité.
+On vérifie que cette déviation reste acceptable (MAE &lt; seuil).</p>
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_frontieres_ml.</span></span><span class="sig-name descname"><span class="pre">TestLimitesPhysiquesML</span></span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#TestLimitesPhysiquesML"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Évaluation du modèle IA sur les cas aux frontières du domaine.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">pytestmark</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[Mark(name='validation',</span> <span class="pre">args=(),</span> <span class="pre">kwargs={})]</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_frontiere_geometrie_extreme</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_predictions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#TestLimitesPhysiquesML.test_frontiere_geometrie_extreme"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Teste la précision sur les profils les plus épais et cambrés (ex: NACA 6624).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_frontiere_haute_incidence_decrochage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_predictions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#TestLimitesPhysiquesML.test_frontiere_haute_incidence_decrochage"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Teste la précision du modèle proche du décrochage (alpha &gt;= 15°).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_frontiere_reynolds_critique</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_predictions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#TestLimitesPhysiquesML.test_frontiere_reynolds_critique"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Teste la précision sur le nombre de Reynolds le plus bas (viscosité dominante).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_frontieres_ml.</span></span><span class="sig-name descname"><span class="pre">df_predictions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#df_predictions"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Charge et fusionne les datasets XFoil et ML pour la comparaison.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_frontieres_ml.</span></span><span class="sig-name descname"><span class="pre">evaluer_erreur_frontiere</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_subset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coef</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seuil_mae</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_frontieres_ml.html#evaluer_erreur_frontiere"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Fonction utilitaire pour calculer et vérifier la MAE.</p>
+</dd></dl>
+
+</section>
+<section id="tests-du-preprocesseur-ml">
+<h2>Tests du Préprocesseur ML<a class="headerlink" href="#tests-du-preprocesseur-ml" title="Lien vers cette rubrique">¶</a></h2>
+<p>Tests unitaires du préprocesseur ML (NACAAeroPreprocessor).</p>
+<p>Vérifie l’encodage des variables catégorielles, la normalisation des
+features continues, la standardisation des cibles et l’inversion
+d’échelle. Le réseau de neurones lui-même n’est pas testé (nécessite
+TensorFlow et un entraînement complet).</p>
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_modele_ml.</span></span><span class="sig-name descname"><span class="pre">TestFitTransform</span></span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestFitTransform"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_cibles_standardisees</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestFitTransform.test_cibles_standardisees"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_dimensions_sortie</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestFitTransform.test_dimensions_sortie"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_marque_comme_ajuste</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestFitTransform.test_marque_comme_ajuste"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_type_float32</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestFitTransform.test_type_float32"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_modele_ml.</span></span><span class="sig-name descname"><span class="pre">TestInverseTransform</span></span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestInverseTransform"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_aller_retour_exact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestInverseTransform.test_aller_retour_exact"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">tests.test_modele_ml.</span></span><span class="sig-name descname"><span class="pre">TestTransform</span></span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestTransform"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_categorie_inconnue_geree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestTransform.test_categorie_inconnue_geree"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_coherent_avec_fit_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestTransform.test_coherent_avec_fit_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">test_refuse_sans_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preprocesseur</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#TestTransform.test_refuse_sans_fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_modele_ml.</span></span><span class="sig-name descname"><span class="pre">df</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#df"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">tests.test_modele_ml.</span></span><span class="sig-name descname"><span class="pre">preprocesseur</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/tests/test_modele_ml.html#preprocesseur"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Modules de AeroPredict:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Projet_Session-master</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Validation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Validation et Tests</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="modele_ML.html" title="Chapitre précédent">modele_ML module</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/tests.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,5 +1,5 @@
-Projet_Session
-==============
+Projet_Session-master
+=====================
 
 .. toctree::
    :maxdepth: 4

@@ -91,7 +91,7 @@ class TestGenerateCombinations:
     def test_colonnes_attendues(self, builder, monkeypatch):
         monkeypatch.setattr(builder, "_get_geometry", lambda name: GEOMETRIE_STUB)
         df = builder._generate_combinations({"name": "naca2412", "source": "naca_grid"})
-        colonnes = ["airfoil", "source", "t", "camber", "x_t", "x_c",
+        colonnes = ["naca", "source", "t", "camber", "x_t", "x_c",
                     "LE_radius", "TE_angle", "t_over_xt", "area", "alpha", "Re"]
         assert list(df.columns) == colonnes
 

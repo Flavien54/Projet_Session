@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>main module &#8212; Documentation AeroPredict 1.0</title>
+    <title>main module &#8212; Documentation AeroPredict 2026</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/translations.js?v=e6b791cb"></script>
@@ -64,7 +64,7 @@ python<span class="w"> </span>main.py<span class="w"> </span>mon_deck.yaml<span 
 </dl>
 <dl class="py class">
 <dt class="sig sig-object py" id="main.AeroPredictApp">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">AeroPredictApp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#main.AeroPredictApp" title="Lien vers cette définition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">AeroPredictApp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/main.html#AeroPredictApp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Application principale AeroPredict : menu interactif du pipeline.</p>
 <p>Chaque étape du pipeline (construction du dataset, calcul XFoil,
@@ -100,7 +100,7 @@ avec les clés du dictionnaire <code class="docutils literal notranslate"><span 
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.afficher_configuration">
-<span class="sig-name descname"><span class="pre">afficher_configuration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.afficher_configuration" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">afficher_configuration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.afficher_configuration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.afficher_configuration" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Affiche dans la console les paramètres du deck YAML chargé.</p>
 <p>Parcourt <code class="xref py py-attr docutils literal notranslate"><span class="pre">config</span></code> à un seul niveau d’imbrication : les
 valeurs de type <code class="docutils literal notranslate"><span class="pre">dict</span></code> (sections, par exemple <code class="docutils literal notranslate"><span class="pre">&quot;chemins&quot;</span></code> ou
@@ -121,7 +121,7 @@ du pipeline.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.appliquer_modele">
-<span class="sig-name descname"><span class="pre">appliquer_modele</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.appliquer_modele" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">appliquer_modele</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.appliquer_modele"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.appliquer_modele" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 4 — applique le modèle ML entraîné sur le dataset complet.</p>
 <p>Délègue l’exécution au script externe
 <code class="docutils literal notranslate"><span class="pre">Application_modele_ML.py</span></code> via <code class="xref py py-meth docutils literal notranslate"><span class="pre">_lancer_script()</span></code>, qui
@@ -139,7 +139,7 @@ par le dashboard (voir <code class="docutils literal notranslate"><span class="p
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.auditer_dataset">
-<span class="sig-name descname"><span class="pre">auditer_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.auditer_dataset" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">auditer_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.auditer_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.auditer_dataset" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 5 — génère les rapports PDF d’audit du dataset XFoil.</p>
 <p>Délègue l’analyse à la fonction
 <a class="reference internal" href="audit_dataset.html#audit_dataset.audit_dataset" title="audit_dataset.audit_dataset"><code class="xref py py-func docutils literal notranslate"><span class="pre">audit_dataset.audit_dataset()</span></code></a>, en lui passant le chemin du
@@ -160,10 +160,10 @@ introuvable sur le disque.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.construire_dataset">
-<span class="sig-name descname"><span class="pre">construire_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.construire_dataset" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">construire_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.construire_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.construire_dataset" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 1 — génère le dataset géométrique NACA + UIUC.</p>
 <p>Délègue la construction à
-<code class="xref py py-class docutils literal notranslate"><span class="pre">data_profils.DatasetBuilder</span></code> (import paresseux, car cette
+<a class="reference internal" href="data_profils.html#data_profils.DatasetBuilder" title="data_profils.DatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">data_profils.DatasetBuilder</span></code></a> (import paresseux, car cette
 classe dépend d’AeroSandbox). En <code class="xref py py-attr docutils literal notranslate"><span class="pre">mode_test</span></code>, le nombre de
 profils générés est limité à 10 afin d’accélérer les itérations
 de développement.</p>
@@ -181,7 +181,7 @@ d’exception (l’étape est simplement ignorée).</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.enrichir_xfoil">
-<span class="sig-name descname"><span class="pre">enrichir_xfoil</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.enrichir_xfoil" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">enrichir_xfoil</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.enrichir_xfoil"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.enrichir_xfoil" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 2 — enrichit le dataset géométrique avec les coefficients XFoil.</p>
 <p>Lit le chemin de l’exécutable XFoil ainsi que le nombre de cœurs
 à utiliser pour la parallélisation depuis la section <code class="docutils literal notranslate"><span class="pre">&quot;xfoil&quot;</span></code>
@@ -203,7 +203,7 @@ l’exécutable XFoil configuré est introuvable sur le disque.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.entrainer_modele">
-<span class="sig-name descname"><span class="pre">entrainer_modele</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.entrainer_modele" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">entrainer_modele</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.entrainer_modele"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.entrainer_modele" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 3 — entraîne le réseau de neurones multi-tâches.</p>
 <p>Délègue l’exécution au script externe <code class="docutils literal notranslate"><span class="pre">modele_ML.py</span></code> via
 <code class="xref py py-meth docutils literal notranslate"><span class="pre">_lancer_script()</span></code>, dans un sous-processus Python séparé
@@ -221,7 +221,7 @@ TensorFlow du reste de l’application.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.lancer_dashboard">
-<span class="sig-name descname"><span class="pre">lancer_dashboard</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.lancer_dashboard" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">lancer_dashboard</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.lancer_dashboard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.lancer_dashboard" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Étape 6 — démarre le dashboard Streamlit dans le navigateur.</p>
 <p>Exécute <code class="docutils literal notranslate"><span class="pre">streamlit</span> <span class="pre">run</span> <span class="pre">dashboard.py</span></code> dans un sous-processus
 bloquant (la méthode ne retourne qu’une fois le serveur
@@ -238,7 +238,7 @@ Streamlit arrêté, par exemple via <code class="docutils literal notranslate"><
 
 <dl class="py method">
 <dt class="sig sig-object py" id="main.AeroPredictApp.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#main.AeroPredictApp.run" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/main.html#AeroPredictApp.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.AeroPredictApp.run" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Exécute la boucle du menu interactif principal.</p>
 <p>Affiche <a class="reference internal" href="#main.AeroPredictApp.MENU" title="main.AeroPredictApp.MENU"><code class="xref py py-data docutils literal notranslate"><span class="pre">MENU</span></code></a>, demande un choix entier via
 <a class="reference internal" href="#main.get_int_input" title="main.get_int_input"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_int_input()</span></code></a>, puis route vers la méthode d’étape
@@ -261,7 +261,7 @@ l’utilisateur choisit de quitter (option <code class="docutils literal notrans
 
 <dl class="py class">
 <dt class="sig sig-object py" id="main.LecteurYAML">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">LecteurYAML</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#main.LecteurYAML" title="Lien vers cette définition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">LecteurYAML</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/main.html#LecteurYAML"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.LecteurYAML" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Lit et valide le deck de configuration YAML du projet.</p>
 <dl class="field-list simple">
@@ -271,7 +271,7 @@ l’utilisateur choisit de quitter (option <code class="docutils literal notrans
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="main.LecteurYAML.read_yaml">
-<span class="sig-name descname"><span class="pre">read_yaml</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#main.LecteurYAML.read_yaml" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">read_yaml</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/main.html#LecteurYAML.read_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.LecteurYAML.read_yaml" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Charge et désérialise le contenu du fichier YAML.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Renvoie<span class="colon">:</span></dt>
@@ -296,7 +296,7 @@ YAML syntaxiquement valide.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="main.get_int_input">
-<span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">get_int_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#main.get_int_input" title="Lien vers cette définition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">main.</span></span><span class="sig-name descname"><span class="pre">get_int_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/main.html#get_int_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main.get_int_input" title="Lien vers cette définition">¶</a></dt>
 <dd><p>Demande un entier à l’utilisateur en boucle jusqu’à saisie valide.</p>
 <p>Toute saisie non convertible en <code class="docutils literal notranslate"><span class="pre">int</span></code> (par exemple une chaîne vide
 ou du texte) déclenche un message d’erreur et une nouvelle demande,
@@ -343,9 +343,9 @@ saisie (transmis directement à <code class="docutils literal notranslate"><span
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Modules de AeroPredict:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="calcul_Xfoil.html">calcul_Xfoil module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dashboard.html">dashboard module</a></li>
@@ -355,12 +355,16 @@ saisie (transmis directement à <code class="docutils literal notranslate"><span
 </ul>
 </li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Validation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">Validation et Tests</a></li>
+</ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-  <li><a href="modules.html">Projet_Session</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
       <li>Previous: <a href="data_profils.html" title="Chapitre précédent">data_profils module</a></li>
       <li>Next: <a href="modele_ML.html" title="Chapitre suivant">modele_ML module</a></li>
   </ul></li>
@@ -380,10 +384,10 @@ saisie (transmis directement à <code class="docutils literal notranslate"><span
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &#169;2026, Flavien Blanchard, Milissa Mechref, Vincent Condette.
+      &#169;2026, Melissa Flavien Vincent.
       
       |
-      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
       &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
       
       |

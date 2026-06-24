@@ -1,14 +1,4 @@
-import pandas as pd
-import numpy as np
-import pytest
-import os
-
-"""
-=============================================================================
-TEST DES LIMITES PHYSIQUES DU MODÈLE MACHINE LEARNING
-=============================================================================
-
-Évaluer la robustesse de l'Intelligence Artificielle aux frontières de son 
+""" Évaluer la robustesse de l'Intelligence Artificielle aux frontières de son 
 domaine d'entraînement, en ciblant les cas extrêmes.
 
 On choisit :
@@ -17,9 +7,12 @@ On choisit :
     - Les profils les plus épais (épaisseur t >= 20%)
     
 Pour chaque zone limite, on calcule l'erreur absolue moyenne entre les prédictions et la réalité.
-On vérifie que cette déviation reste acceptable (MAE < seuil).
-=============================================================================
-"""
+On vérifie que cette déviation reste acceptable (MAE < seuil)."""
+
+import pandas as pd
+import numpy as np
+import pytest
+import os
 
 # === CHEMINS ===
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
