@@ -100,7 +100,7 @@ AeroPredict/
 | **TensorFlow / Keras** | ≥ 2.16 | Entraînement et inférence du réseau multi-tâches |
 | **scikit-learn** | — | Normalisation (`StandardScaler`) et encodage (`LabelEncoder`) |
 | **Plotly** | — | Graphiques interactifs dans le dashboard |
-| **Streamlit** | — | Dashboard web interactif (4 pages, déployable localement) |
+| **Streamlit** | — | Dashboard web interactif (déployable localement) |
 | **PyYAML** | — | Lecture du fichier de configuration `deck.yaml` |
 | **Matplotlib / Seaborn** | — | Graphiques statiques dans les rapports d'audit |
 | **pytest** | — | Suite de tests unitaires (43 tests) |
