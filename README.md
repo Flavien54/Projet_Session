@@ -224,6 +224,7 @@ python modele_ML.py             # Étape 3
 python Application_modele_ML.py # Étape 4
 python audit_dataset.py         # Étape 5
 ```
+Remarques : Les différentes bases de données sont présents dans dataset_projet.zip de la branche livrables
 
 ---
 
