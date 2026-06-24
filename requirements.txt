@@ -1,0 +1,28 @@
+# Dépendances du projet AeroPredict
+# Installation : pip install -r requirements.txt
+
+# --- Données & calcul scientifique ---
+numpy
+pandas
+scipy
+
+# --- Machine Learning ---
+scikit-learn
+tensorflow          # fournit aussi keras
+
+# --- Aérodynamique (XFoil) ---
+aerosandbox
+
+# --- Visualisation ---
+matplotlib
+seaborn
+plotly
+
+# --- Application / dashboard ---
+streamlit
+
+# --- Configuration ---
+PyYAML              # module "yaml" (lecture de deck.yaml)
+
+# --- Tests ---
+pytest
