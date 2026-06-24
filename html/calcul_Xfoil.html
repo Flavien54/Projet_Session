@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>calcul_Xfoil module &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=61cd365c" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=12dfc556" />
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/translations.js?v=bf059b8c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="dashboard module" href="dashboard.html" />
+    <link rel="prev" title="audit_dataset module" href="audit_dataset.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-calcul_Xfoil">
+<span id="calcul-xfoil-module"></span><h1>calcul_Xfoil module<a class="headerlink" href="#module-calcul_Xfoil" title="Lien vers cette rubrique">¶</a></h1>
+<p>Module de génération et d’enrichissement de dataset via XFoil.</p>
+<p>MGA 802 · AeroPredict</p>
+<p>Ce script lit un dataset géométrique existant, exécute des analyses
+aérodynamiques couplées en parallèle à l’aide de XFoil (via AeroSandbox),
+gère les non-convergences par une cascade de stratégies (batch, segments, point par point)
+et produit un dataset final enrichi des coefficients aérodynamiques (CL, CD, CM).</p>
+<dl class="simple">
+<dt>Usage:</dt><dd><p>python calcul_Xfoil.py</p>
+</dd>
+</dl>
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.CD_BOUNDS">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">CD_BOUNDS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(1e-05,</span> <span class="pre">0.5)</span></em><a class="headerlink" href="#calcul_Xfoil.CD_BOUNDS" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Bornes physiques pour le coefficient de traînée (CD) afin d’éliminer les artefacts</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.CL_BOUNDS">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">CL_BOUNDS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(-2.5,</span> <span class="pre">3.5)</span></em><a class="headerlink" href="#calcul_Xfoil.CL_BOUNDS" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Bornes physiques pour le coefficient de portance (CL) afin d’éliminer les artefacts</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.CM_BOUNDS">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">CM_BOUNDS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(-1.0,</span> <span class="pre">1.0)</span></em><a class="headerlink" href="#calcul_Xfoil.CM_BOUNDS" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Bornes physiques pour le coefficient de moment (CM) afin d’éliminer les artefacts</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.INPUT_DATASET">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">INPUT_DATASET</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'dataset_profil.csv'</span></em><a class="headerlink" href="#calcul_Xfoil.INPUT_DATASET" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin vers le fichier CSV contenant les caractéristiques géométriques de base</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.ITER_DEFAULT">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">ITER_DEFAULT</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">100</span></em><a class="headerlink" href="#calcul_Xfoil.ITER_DEFAULT" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Valeur par défaut du nombre maximal d’itérations XFoil</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.ITER_MAP">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">ITER_MAP</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{50000.0:</span> <span class="pre">40,</span> <span class="pre">100000.0:</span> <span class="pre">60,</span> <span class="pre">500000.0:</span> <span class="pre">100,</span> <span class="pre">1000000.0:</span> <span class="pre">100,</span> <span class="pre">5000000.0:</span> <span class="pre">100}</span></em><a class="headerlink" href="#calcul_Xfoil.ITER_MAP" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Dictionnaire associant le nombre de Reynolds au nombre maximum d’itérations XFoil</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.LD_MAX">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">LD_MAX</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">300.0</span></em><a class="headerlink" href="#calcul_Xfoil.LD_MAX" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Limite maximale absolue de la finesse aérodynamique (L/D) autorisée</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.OUTPUT_DATASET">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">OUTPUT_DATASET</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'dataset_aeroXfoil.csv'</span></em><a class="headerlink" href="#calcul_Xfoil.OUTPUT_DATASET" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin vers le fichier CSV de sortie enrichi par XFoil</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.TIMEOUT_DEFAULT">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">TIMEOUT_DEFAULT</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">60</span></em><a class="headerlink" href="#calcul_Xfoil.TIMEOUT_DEFAULT" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Valeur par défaut du timeout si le Reynolds n’est pas répertorié</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.TIMEOUT_MAP">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">TIMEOUT_MAP</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{50000.0:</span> <span class="pre">20,</span> <span class="pre">100000.0:</span> <span class="pre">30,</span> <span class="pre">500000.0:</span> <span class="pre">60,</span> <span class="pre">1000000.0:</span> <span class="pre">90,</span> <span class="pre">5000000.0:</span> <span class="pre">120}</span></em><a class="headerlink" href="#calcul_Xfoil.TIMEOUT_MAP" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Dictionnaire associant le nombre de Reynolds à un timeout d’exécution (en secondes)</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="calcul_Xfoil.XFOIL_PATH">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">XFOIL_PATH</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'C:\\Xfoil\\xfoil.exe'</span></em><a class="headerlink" href="#calcul_Xfoil.XFOIL_PATH" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin absolu vers l’exécutable XFoil sur le système</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="calcul_Xfoil.XFoilDatasetBuilder">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">XFoilDatasetBuilder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cores</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Bases : <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Orchestre la parallélisation et la consolidation du jeu de données XFoil.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_csv</strong> (<em>str</em>) – Emplacement du fichier de données géométriques d’entrée.</p></li>
+<li><p><strong>output_csv</strong> (<em>str</em>) – Emplacement du fichier CSV cible enrichi.</p></li>
+<li><p><strong>max_cores</strong> (<em>int</em>) – Nombre maximal de cœurs CPU autorisés pour la parallélisation.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="calcul_Xfoil.XFoilDatasetBuilder.build">
+<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#calcul_Xfoil.XFoilDatasetBuilder.build" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Déclenche la création du jeu de données aérodynamique distribué.</p>
+<p>Cette méthode charge les données géométriques, identifie les couples (profil, Reynolds)
+déjà calculés en cas de crash précédent pour assurer une reprise automatique,
+puis distribue la charge de travail sur les différents processus esclaves.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Rien. Écrit (ou complète) <code class="xref py py-attr docutils literal notranslate"><span class="pre">output_csv</span></code> sur disque.</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="calcul_Xfoil.compute_profile_re">
+<span class="sig-prename descclassname"><span class="pre">calcul_Xfoil.</span></span><span class="sig-name descname"><span class="pre">compute_profile_re</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#calcul_Xfoil.compute_profile_re" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Exécute la routine complète XFoil en cascade pour un unique couple (profil, Reynolds).</p>
+<p>Cette fonction autonome est conçue pour être distribuée via un pool d’exécution de processus.
+Elle applique trois niveaux de résolution (Batch -&gt; Segment de 10 -&gt; Point par point)
+avant de combler les trous résiduels par extrapolation numérique.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<em>tuple</em>) – Tuple <code class="docutils literal notranslate"><span class="pre">(profil_name,</span> <span class="pre">re_val,</span> <span class="pre">alphas,</span> <span class="pre">geom_row)</span></code> où :
+<code class="docutils literal notranslate"><span class="pre">profil_name</span></code> (str) est l’identifiant du profil, <code class="docutils literal notranslate"><span class="pre">re_val</span></code>
+(float) le nombre de Reynolds à évaluer, <code class="docutils literal notranslate"><span class="pre">alphas</span></code> (np.ndarray)
+la liste ordonnée des angles d’attaque cibles, et <code class="docutils literal notranslate"><span class="pre">geom_row</span></code>
+(dict) les métadonnées géométriques.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionnaire résumant le succès de l’opération, le taux de
+convergence et la liste complète des dictionnaires de lignes
+générées pour le DataFrame.</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">calcul_Xfoil module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dashboard.html">dashboard module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_profils.html">data_profils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">main module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modele_ML.html">modele_ML module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
+      <li>Previous: <a href="audit_dataset.html" title="Chapitre précédent">audit_dataset module</a></li>
+      <li>Next: <a href="dashboard.html" title="Chapitre suivant">dashboard module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Recherche rapide</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+      |
+      <a href="_sources/calcul_Xfoil.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>dashboard module &#8212; Documentation AeroPredict 2026</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=61cd365c" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=12dfc556" />
+    <script src="_static/documentation_options.js?v=74e33a29"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/translations.js?v=bf059b8c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="data_profils module" href="data_profils.html" />
+    <link rel="prev" title="calcul_Xfoil module" href="calcul_Xfoil.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-dashboard">
+<span id="dashboard-module"></span><h1>dashboard module<a class="headerlink" href="#module-dashboard" title="Lien vers cette rubrique">¶</a></h1>
+<p>Dashboard interactif AeroPredict — MGA 802.</p>
+<p>Ce module construit un tableau de bord <a class="reference external" href="https://streamlit.io/">Streamlit</a>
+permettant d’explorer et de valider les résultats du pipeline aérodynamique
+couplé à un modèle de Machine Learning. Il propose les six sections
+suivantes, accessibles depuis la barre latérale de navigation :</p>
+<ol class="arabic simple">
+<li><p><strong>Polaires</strong> — comparaison des polaires par profil (XFoil vs modèle ML
+vs Ansys Fluent) ;</p></li>
+<li><p><strong>Performance ML</strong> — métriques globales du modèle ML (R², MAE, RMSE,
+dispersion) ;</p></li>
+<li><p><strong>Validation ML</strong> — analyse fine du comportement du modèle (dérivée
+<code class="docutils literal notranslate"><span class="pre">dCl/dalpha</span></code>, régression polynomiale <code class="docutils literal notranslate"><span class="pre">Cd(Cl)</span></code>) ;</p></li>
+<li><p><strong>Optimisation</strong> — recherche du profil maximisant la finesse
+<code class="docutils literal notranslate"><span class="pre">CL/CD</span></code> ;</p></li>
+<li><p><strong>Dataset</strong> — exploration statistique du corpus (familles de profils,
+taux de convergence, distribution des features géométriques) ;</p></li>
+<li><p><strong>Prédiction ML</strong> — génération à la volée des polaires d’un profil
+quelconque défini par l’utilisateur.</p></li>
+</ol>
+<p>Ce fichier est documenté au format reStructuredText (compatible
+<a class="reference external" href="https://www.sphinx-doc.org/">Sphinx</a> et son extension <code class="docutils literal notranslate"><span class="pre">autodoc</span></code>). Pour
+générer la documentation HTML, il suffit d’inclure ce module dans la
+configuration Sphinx (<code class="docutils literal notranslate"><span class="pre">conf.py</span></code>) puis d’exécuter <code class="docutils literal notranslate"><span class="pre">sphinx-build</span></code>.</p>
+<dl class="field-list">
+<dt class="field-odd">Usage<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>streamlit<span class="w"> </span>run<span class="w"> </span>dashboard.py
+</pre></div>
+</div>
+</dd>
+<dt class="field-even">Auteurs<span class="colon">:</span></dt>
+<dd class="field-even"><p>Blanchard / Mechref / Condette</p>
+</dd>
+<dt class="field-odd">Cours<span class="colon">:</span></dt>
+<dd class="field-odd"><p>MGA 802</p>
+</dd>
+</dl>
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.COLORS">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">COLORS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'accent':</span> <span class="pre">'#3B82F6',</span> <span class="pre">'accent_light':</span> <span class="pre">'#60A5FA',</span> <span class="pre">'background':</span> <span class="pre">'#F8FAFC',</span> <span class="pre">'card_bg':</span> <span class="pre">'#FFFFFF',</span> <span class="pre">'fluent':</span> <span class="pre">'#059669',</span> <span class="pre">'info':</span> <span class="pre">'#3B82F6',</span> <span class="pre">'ml':</span> <span class="pre">'#DC2626',</span> <span class="pre">'primary':</span> <span class="pre">'#0F172A',</span> <span class="pre">'secondary':</span> <span class="pre">'#1E293B',</span> <span class="pre">'sidebar_bg':</span> <span class="pre">'#0F172A',</span> <span class="pre">'sidebar_text':</span> <span class="pre">'#E2E8F0',</span> <span class="pre">'success':</span> <span class="pre">'#10B981',</span> <span class="pre">'text':</span> <span class="pre">'#1E293B',</span> <span class="pre">'text_light':</span> <span class="pre">'#64748B',</span> <span class="pre">'warning':</span> <span class="pre">'#F59E0B',</span> <span class="pre">'xfoil':</span> <span class="pre">'#2563EB'}</span></em><a class="headerlink" href="#dashboard.COLORS" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Palette de couleurs scientifique moderne utilisée pour l’ensemble des
+graphiques Plotly et des composants HTML du dashboard. Les clés
+<code class="docutils literal notranslate"><span class="pre">xfoil</span></code>, <code class="docutils literal notranslate"><span class="pre">ml</span></code> et <code class="docutils literal notranslate"><span class="pre">fluent</span></code> désignent les couleurs associées à
+chaque source de données afin d’assurer une cohérence visuelle sur
+toutes les pages.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.CSV_ML">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">CSV_ML</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'dataset_aeroXfoil_avec_predictions.csv'</span></em><a class="headerlink" href="#dashboard.CSV_ML" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin du fichier CSV contenant les résultats XFoil enrichis des
+prédictions du modèle ML (mêmes clés <code class="docutils literal notranslate"><span class="pre">(naca,</span> <span class="pre">alpha,</span> <span class="pre">Re)</span></code> que
+<a class="reference internal" href="#dashboard.CSV_XFOIL" title="dashboard.CSV_XFOIL"><code class="xref py py-data docutils literal notranslate"><span class="pre">CSV_XFOIL</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.CSV_XFOIL">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">CSV_XFOIL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'dataset_aeroXfoil.csv'</span></em><a class="headerlink" href="#dashboard.CSV_XFOIL" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin du fichier CSV contenant les résultats bruts XFoil.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.FEATURES_ORDRE">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">FEATURES_ORDRE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['t',</span> <span class="pre">'camber',</span> <span class="pre">'x_t',</span> <span class="pre">'x_c',</span> <span class="pre">'LE_radius',</span> <span class="pre">'TE_angle',</span> <span class="pre">'t_over_xt',</span> <span class="pre">'area']</span></em><a class="headerlink" href="#dashboard.FEATURES_ORDRE" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Ordre exact des 8 features géométriques attendues en entrée du
+<code class="docutils literal notranslate"><span class="pre">StandardScaler</span></code> (et donc du modèle ML). Cet ordre doit impérativement
+correspondre à celui utilisé lors de l’entraînement, sous peine de
+prédictions erronées silencieuses.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.MODEL_PATH">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">MODEL_PATH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'naca_multitask_model.keras'</span></em><a class="headerlink" href="#dashboard.MODEL_PATH" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin du modèle de réseau de neurones multi-tâches sauvegardé au
+format Keras (<code class="docutils literal notranslate"><span class="pre">.keras</span></code>).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dashboard.PREPROCESSOR_PATH">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">PREPROCESSOR_PATH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'preprocessor.pkl'</span></em><a class="headerlink" href="#dashboard.PREPROCESSOR_PATH" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Chemin du préprocesseur (<code class="docutils literal notranslate"><span class="pre">StandardScaler</span></code> sur les features et sur
+chaque sortie) sérialisé via <code class="docutils literal notranslate"><span class="pre">pickle</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.calculer_metriques">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">calculer_metriques</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_vrai</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#dashboard.calculer_metriques" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Calcule les métriques de qualité de régression R², MAE et RMSE.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>y_vrai</strong> (<em>numpy.ndarray</em>) – Valeurs de référence (vérité terrain), typiquement
+issues d’XFoil.</p></li>
+<li><p><strong>y_pred</strong> (<em>numpy.ndarray</em>) – Valeurs prédites par le modèle ML, de même forme que
+<code class="docutils literal notranslate"><span class="pre">y_vrai</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Dictionnaire à trois clés :</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;R2&quot;</span></code> — coefficient de détermination (<code class="docutils literal notranslate"><span class="pre">NaN</span></code> si la variance
+de <code class="docutils literal notranslate"><span class="pre">y_vrai</span></code> est nulle) ;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;MAE&quot;</span></code> — erreur absolue moyenne ;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;RMSE&quot;</span></code> — racine de l’erreur quadratique moyenne.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.charger_donnees">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">charger_donnees</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#dashboard.charger_donnees" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Charge les datasets XFoil et ML, et les fusionne sur leurs clés communes.</p>
+<p>La fusion (<code class="docutils literal notranslate"><span class="pre">merge</span></code> interne) s’effectue sur le triplet
+<code class="docutils literal notranslate"><span class="pre">(naca,</span> <span class="pre">alpha,</span> <span class="pre">Re)</span></code> qui identifie de façon unique un point de calcul
+aérodynamique. Les colonnes de coefficients (<code class="docutils literal notranslate"><span class="pre">CL</span></code>, <code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code>)
+issues de chaque source sont renommées avec les suffixes
+<code class="docutils literal notranslate"><span class="pre">_xfoil</span></code> / <code class="docutils literal notranslate"><span class="pre">_ml</span></code> afin d’éviter toute ambiguïté en aval.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Cette fonction est décorée par <code class="docutils literal notranslate"><span class="pre">st.cache_data</span></code> : Streamlit met en
+cache le résultat tant que les fichiers source ne changent pas,
+évitant ainsi une relecture disque à chaque interaction utilisateur.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p><p>Un triplet <code class="docutils literal notranslate"><span class="pre">(df_xfoil,</span> <span class="pre">df_ml,</span> <span class="pre">df_merge)</span></code> où :</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">df_xfoil</span></code> est le DataFrame brut issu de <a class="reference internal" href="#dashboard.CSV_XFOIL" title="dashboard.CSV_XFOIL"><code class="xref py py-data docutils literal notranslate"><span class="pre">CSV_XFOIL</span></code></a> ;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">df_ml</span></code> est le DataFrame brut issu de <a class="reference internal" href="#dashboard.CSV_ML" title="dashboard.CSV_ML"><code class="xref py py-data docutils literal notranslate"><span class="pre">CSV_ML</span></code></a> ;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">df_merge</span></code> est la fusion des deux, avec colonnes suffixées
+<code class="docutils literal notranslate"><span class="pre">_xfoil</span></code> et <code class="docutils literal notranslate"><span class="pre">_ml</span></code> pour <code class="docutils literal notranslate"><span class="pre">CL</span></code>, <code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple(pandas.DataFrame, pandas.DataFrame, pandas.DataFrame)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.charger_fluent">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">charger_fluent</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#dashboard.charger_fluent" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Charge les données de référence Ansys Fluent, toutes sources confondues.</p>
+<p>Deux sources de données sont combinées :</p>
+<ol class="arabic simple">
+<li><p>un fichier unique multi-profils (<code class="docutils literal notranslate"><span class="pre">dataset_fluent.csv</span></code>), dont les
+colonnes peuvent porter des noms hétérogènes selon la version du
+pipeline ayant généré le fichier (<code class="docutils literal notranslate"><span class="pre">CL_ML</span></code>/<code class="docutils literal notranslate"><span class="pre">CFD_CL</span></code>, etc.) — ces
+colonnes sont renommées de façon défensive vers le format canonique
+<code class="docutils literal notranslate"><span class="pre">CL</span></code>/<code class="docutils literal notranslate"><span class="pre">CD</span></code>/<code class="docutils literal notranslate"><span class="pre">CM</span></code>/<code class="docutils literal notranslate"><span class="pre">LD</span></code> ;</p></li>
+<li><p>des fichiers individuels par profil et par Reynolds, nommés selon
+le motif <code class="docutils literal notranslate"><span class="pre">&quot;{profil}_Re{reynolds}_FLUENT.csv&quot;</span></code>, utilisés en
+complément si le profil n’est pas déjà présent dans le fichier
+groupé.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionnaire associant chaque couple <code class="docutils literal notranslate"><span class="pre">(profil,</span> <span class="pre">Re)</span></code> (clé)
+à un <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> contenant les colonnes aérodynamiques
+Fluent correspondantes (valeur).</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict[tuple(str, float), pandas.DataFrame]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.charger_modele">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">charger_modele</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#dashboard.charger_modele" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Charge le modèle Keras de prédiction aérodynamique et son préprocesseur.</p>
+<p>Le chargement du modèle est tenté successivement via <code class="docutils literal notranslate"><span class="pre">tensorflow.keras</span></code>
+puis, en cas d’échec, via le paquet <code class="docutils literal notranslate"><span class="pre">keras</span></code> autonome — ceci afin de
+rester compatible avec différents environnements d’exécution.</p>
+<p>Le préprocesseur sérialisé (<code class="docutils literal notranslate"><span class="pre">pickle</span></code>) référence une classe
+<code class="xref py py-class docutils literal notranslate"><span class="pre">NACAAeroPreprocessor</span></code> définie au moment de l’entraînement.
+Comme cette classe n’est pas importable depuis ce module au moment du
+<code class="docutils literal notranslate"><span class="pre">unpickle</span></code>, elle est reconstruite ici à l’identique et injectée dans
+l’espace de noms <code class="docutils literal notranslate"><span class="pre">__main__</span></code> avant désérialisation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Cette fonction est décorée par <code class="docutils literal notranslate"><span class="pre">st.cache_resource</span></code> : le modèle
+et le préprocesseur ne sont chargés qu’une seule fois par session
+Streamlit, ce qui évite un rechargement coûteux à chaque
+interaction.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Un couple <code class="docutils literal notranslate"><span class="pre">(model,</span> <span class="pre">preprocessor)</span></code>. Si l’un des fichiers
+requis (<a class="reference internal" href="#dashboard.MODEL_PATH" title="dashboard.MODEL_PATH"><code class="xref py py-data docutils literal notranslate"><span class="pre">MODEL_PATH</span></code></a>, <a class="reference internal" href="#dashboard.PREPROCESSOR_PATH" title="dashboard.PREPROCESSOR_PATH"><code class="xref py py-data docutils literal notranslate"><span class="pre">PREPROCESSOR_PATH</span></code></a>) est absent,
+ou si le chargement échoue, retourne <code class="docutils literal notranslate"><span class="pre">(None,</span> <span class="pre">None)</span></code>.</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.main">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.main" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Point d’entrée principal : construit la structure du dashboard et route vers la page choisie.</p>
+<p>Cette fonction orchestre l’application Streamlit dans son ensemble :</p>
+<ol class="arabic simple">
+<li><p>injection du CSS global (thème de la sidebar, masquage de l’en-tête
+natif Streamlit) ;</p></li>
+<li><p>rendu de la sidebar et récupération de la page/disposition
+choisies via <a class="reference internal" href="#dashboard.render_sidebar" title="dashboard.render_sidebar"><code class="xref py py-func docutils literal notranslate"><span class="pre">render_sidebar()</span></code></a> ;</p></li>
+<li><p>cas particulier de la page « Prédiction ML », qui ne nécessite pas
+les fichiers CSV XFoil/ML et est donc traitée en court-circuit ;</p></li>
+<li><p>pour les autres pages, vérification de l’existence des fichiers
+CSV requis (arrêt de l’exécution via <code class="docutils literal notranslate"><span class="pre">st.stop()</span></code> si manquants),
+puis chargement des données et routage explicite vers la fonction
+de page correspondante.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Rien ; <code class="docutils literal notranslate"><span class="pre">main</span></code> ne fait que déclencher des effets de bord
+Streamlit (rendu de widgets et de graphiques) et peut interrompre
+l’exécution du script via <code class="docutils literal notranslate"><span class="pre">st.stop()</span></code> en cas de fichier
+manquant.</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_dataset">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_dataset" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Dataset » : exploration statistique du corpus XFoil.</p>
+<p>Présente des indicateurs globaux (nombre de lignes, de profils
+uniques, de familles, taux de convergence), la répartition des
+profils par famille (préfixe alphabétique du nom NACA), le taux de
+convergence XFoil par nombre de Reynolds (avec un gradient de couleur
+reflétant la qualité de convergence), ainsi qu’un histogramme avec
+estimation de densité par noyau (KDE) pour chacune des 8 features
+géométriques du dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_xfoil</strong> (<em>pandas.DataFrame</em>) – DataFrame XFoil brut tel que retourné par
+<a class="reference internal" href="#dashboard.charger_donnees" title="dashboard.charger_donnees"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_donnees()</span></code></a>.</p></li>
+<li><p><strong>disposition</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;2</span> <span class="pre">colonnes&quot;</span></code> ou <code class="docutils literal notranslate"><span class="pre">&quot;1</span> <span class="pre">colonne&quot;</span></code> ; contrôle la
+mise en page des deux premiers graphiques (familles et
+convergence).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_optimisation">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_optimisation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_optimisation" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Optimisation » : recherche du meilleur profil par finesse.</p>
+<p>Pour un nombre de Reynolds et une plage d’angles d’attaque donnés,
+cette page calcule, pour chaque profil du dataset ML, la finesse
+maximale atteinte (<code class="docutils literal notranslate"><span class="pre">CL</span> <span class="pre">/</span> <span class="pre">CD</span></code>), puis classe et affiche les <code class="docutils literal notranslate"><span class="pre">top_n</span></code>
+profils les plus performants sous forme de diagramme en barres
+horizontales, accompagné d’un tableau de détails (angle optimal,
+coefficients, épaisseur, cambrure).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Les points dont <code class="docutils literal notranslate"><span class="pre">CD</span> <span class="pre">&lt;=</span> <span class="pre">1e-5</span></code> sont écartés en amont du calcul
+afin d’éviter les valeurs de finesse non physiques (division par
+une traînée quasi nulle).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>df_ml</strong> (<em>pandas.DataFrame</em>) – DataFrame des prédictions ML brutes (issu de
+<a class="reference internal" href="#dashboard.CSV_ML" title="dashboard.CSV_ML"><code class="xref py py-data docutils literal notranslate"><span class="pre">CSV_ML</span></code></a>), contenant au minimum les colonnes <code class="docutils literal notranslate"><span class="pre">naca</span></code>,
+<code class="docutils literal notranslate"><span class="pre">source</span></code>, <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, <code class="docutils literal notranslate"><span class="pre">Re</span></code>, <code class="docutils literal notranslate"><span class="pre">CL</span></code>, <code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code>, <code class="docutils literal notranslate"><span class="pre">t</span></code> et
+<code class="docutils literal notranslate"><span class="pre">camber</span></code>.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_performance">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_performance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_performance" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Performance ML » : métriques globales du modèle.</p>
+<p>Calcule et affiche, pour chacun des trois coefficients (<code class="docutils literal notranslate"><span class="pre">CL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code>) : le R², la MAE et la RMSE entre les valeurs XFoil
+(référence) et les valeurs prédites par le modèle ML ; un nuage de
+points « Réel vs Prédit » avec la droite <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">x</span></code> idéale ; et un
+histogramme de la distribution des erreurs absolues, avec la MAE
+superposée en ligne verticale.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>df_merge</strong> (<em>pandas.DataFrame</em>) – DataFrame fusionné XFoil/ML tel que retourné par
+<a class="reference internal" href="#dashboard.charger_donnees" title="dashboard.charger_donnees"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_donnees()</span></code></a>.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_polaires">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_polaires" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Polaires » : comparaison XFoil / ML / Fluent.</p>
+<p>L’utilisateur choisit un profil et un nombre de Reynolds parmi les
+valeurs disponibles dans <code class="docutils literal notranslate"><span class="pre">df_merge</span></code> ; quatre graphiques sont alors
+tracés (CL, CD, CM en fonction de l’angle d’attaque, ainsi que la
+finesse CL/CD), chacun superposant les courbes XFoil et ML, et les
+points Fluent lorsqu’ils sont disponibles pour ce couple
+<code class="docutils literal notranslate"><span class="pre">(profil,</span> <span class="pre">Re)</span></code>. Un panneau dépliable permet de consulter les
+données tabulaires sous-jacentes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_merge</strong> (<em>pandas.DataFrame</em>) – DataFrame fusionné XFoil/ML tel que retourné par
+<a class="reference internal" href="#dashboard.charger_donnees" title="dashboard.charger_donnees"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_donnees()</span></code></a> (colonnes <code class="docutils literal notranslate"><span class="pre">CL_xfoil</span></code>, <code class="docutils literal notranslate"><span class="pre">CL_ml</span></code>, etc.).</p></li>
+<li><p><strong>fluent</strong> (<em>dict</em>) – Dictionnaire des données Fluent indexées par
+<code class="docutils literal notranslate"><span class="pre">(profil,</span> <span class="pre">Re)</span></code>, tel que retourné par <a class="reference internal" href="#dashboard.charger_fluent" title="dashboard.charger_fluent"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_fluent()</span></code></a>.</p></li>
+<li><p><strong>disposition</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;2</span> <span class="pre">colonnes&quot;</span></code> ou <code class="docutils literal notranslate"><span class="pre">&quot;1</span> <span class="pre">colonne&quot;</span></code> ; contrôle la
+mise en page des quatre graphiques principaux.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_prediction_ml">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_prediction_ml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">disposition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fluent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_prediction_ml" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Prédiction ML » : génération de polaires pour un profil arbitraire.</p>
+<p>Cette page permet à l’utilisateur de définir librement les 8
+paramètres géométriques d’un profil (éventuellement pré-remplis à
+partir d’un profil connu disposant de données Fluent), ainsi que les
+conditions de vol (nombre de Reynolds, plage et résolution d’angle
+d’attaque), puis de déclencher une inférence du modèle ML pour
+générer la polaire complète correspondante. Si le profil choisi
+correspond à un préréglage Fluent disponible au même Reynolds, les
+points Fluent sont superposés à titre de comparaison.</p>
+<p>Le flux complet est : sélection d’un préréglage optionnel → réglage
+des sliders géométriques → vérifications de cohérence → réglage des
+conditions de vol → clic sur le bouton de génération → inférence →
+affichage des métriques clés (CL max, finesse max, CD min) et des
+courbes → export CSV optionnel des données générées.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>disposition</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;2</span> <span class="pre">colonnes&quot;</span></code> ou <code class="docutils literal notranslate"><span class="pre">&quot;1</span> <span class="pre">colonne&quot;</span></code> ; transmis à
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_tracer_polaire_ml_fluent()</span></code> pour la mise en page des
+graphiques.</p></li>
+<li><p><strong>fluent</strong> (<em>dict</em>) – Dictionnaire des données Fluent indexées par
+<code class="docutils literal notranslate"><span class="pre">(profil,</span> <span class="pre">Re)</span></code>, tel que retourné par <a class="reference internal" href="#dashboard.charger_fluent" title="dashboard.charger_fluent"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_fluent()</span></code></a> ;
+utilisé à la fois pour proposer des préréglages et pour
+superposer les points de référence après inférence.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord). La fonction peut
+retourner précocement si les fichiers du modèle sont introuvables,
+si le chargement du modèle échoue, si l’utilisateur n’a pas
+encore cliqué sur le bouton de génération, ou si l’inférence lève
+une exception.</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.page_validation_model">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">page_validation_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.page_validation_model" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la page « Validation ML » : analyse fine du comportement du modèle.</p>
+<p>Cette page permet de sélectionner un ou plusieurs profils ainsi
+qu’un nombre de Reynolds, puis présente :</p>
+<ol class="arabic simple">
+<li><p>la dérivée numérique <code class="docutils literal notranslate"><span class="pre">dCL/dα</span></code> (calculée par différences finies
+via <code class="docutils literal notranslate"><span class="pre">numpy.gradient</span></code>), comparant XFoil et ML, profil par
+profil ;</p></li>
+<li><p>le diagramme polaire <code class="docutils literal notranslate"><span class="pre">CD(CL)</span></code> restreint à la portion <em>avant
+décrochage</em> (c’est-à-dire jusqu’au <code class="docutils literal notranslate"><span class="pre">CL</span></code> maximal observé), avec
+une régression polynomiale d’ordre 4 optionnelle sur les points
+XFoil et son R² associé ;</p></li>
+<li><p>un tableau récapitulatif des coefficients de régression et de
+l’angle de décrochage par profil ;</p></li>
+<li><p>un tableau comparatif des métriques (R², MAE) par profil.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>df_merge</strong> (<em>pandas.DataFrame</em>) – DataFrame fusionné XFoil/ML tel que retourné par
+<a class="reference internal" href="#dashboard.charger_donnees" title="dashboard.charger_donnees"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_donnees()</span></code></a>.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord). La fonction peut
+retourner précocement (<code class="docutils literal notranslate"><span class="pre">return</span></code> simple) si aucun profil n’est
+sélectionné ou si la sélection ne correspond à aucune donnée.</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.predire_polaires">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">predire_polaires</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alphas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">re_val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">naca_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'naca_grid'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#dashboard.predire_polaires" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Prédit la polaire complète (CL, CD, CM, finesse) d’un profil donné.</p>
+<p>Pour chaque angle d’attaque fourni, un vecteur d’entrée est construit
+en concaténant les 8 features géométriques (dans l’ordre imposé par
+<a class="reference internal" href="#dashboard.FEATURES_ORDRE" title="dashboard.FEATURES_ORDRE"><code class="xref py py-data docutils literal notranslate"><span class="pre">FEATURES_ORDRE</span></code></a>) avec l’angle d’attaque courant et le nombre de
+Reynolds, puis standardisé et soumis au modèle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – Modèle Keras chargé via <a class="reference internal" href="#dashboard.charger_modele" title="dashboard.charger_modele"><code class="xref py py-func docutils literal notranslate"><span class="pre">charger_modele()</span></code></a>.</p></li>
+<li><p><strong>pre</strong> – Préprocesseur associé au modèle (instance de
+<code class="docutils literal notranslate"><span class="pre">NACAAeroPreprocessor</span></code>), porteur des scalers <code class="docutils literal notranslate"><span class="pre">feature_scaler</span></code>
+et <code class="docutils literal notranslate"><span class="pre">target_scalers</span></code>.</p></li>
+<li><p><strong>geo</strong> (<em>dict</em>) – Dictionnaire des 8 paramètres géométriques du profil ;
+doit contenir au minimum toutes les clés de
+<a class="reference internal" href="#dashboard.FEATURES_ORDRE" title="dashboard.FEATURES_ORDRE"><code class="xref py py-data docutils literal notranslate"><span class="pre">FEATURES_ORDRE</span></code></a>.</p></li>
+<li><p><strong>alphas</strong> (<em>numpy.ndarray</em>) – Vecteur des angles d’attaque (en degrés) pour lesquels
+générer la prédiction.</p></li>
+<li><p><strong>re_val</strong> (<em>float</em>) – Nombre de Reynolds des conditions de vol.</p></li>
+<li><p><strong>naca_name</strong> (<em>str</em>) – Nom du profil (purement informatif, non utilisé
+dans le calcul).</p></li>
+<li><p><strong>source_name</strong> (<em>str</em>) – Étiquette de la source de génération (purement
+informative, non utilisée dans le calcul).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame indexé par <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, contenant les colonnes
+<code class="docutils literal notranslate"><span class="pre">CL</span></code>, <code class="docutils literal notranslate"><span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">CM</span></code> et <code class="docutils literal notranslate"><span class="pre">finesse</span></code> (= <code class="docutils literal notranslate"><span class="pre">CL</span> <span class="pre">/</span> <span class="pre">CD</span></code>, <code class="docutils literal notranslate"><span class="pre">NaN</span></code>
+lorsque <code class="docutils literal notranslate"><span class="pre">CD</span></code> est nul).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.re_label">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#dashboard.re_label" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Formate un nombre de Reynolds en notation scientifique lisible.</p>
+<p>Le résultat est destiné aux libellés de widgets Streamlit (menus,
+sliders) ; il utilise des exposants Unicode pour un rendu compact.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>r</strong> (<em>float</em>) – Nombre de Reynolds à formater.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Chaîne du type <code class="docutils literal notranslate"><span class="pre">&quot;Re</span> <span class="pre">=</span> <span class="pre">1×10⁶&quot;</span></code> ou <code class="docutils literal notranslate"><span class="pre">&quot;Re</span> <span class="pre">=</span> <span class="pre">2.5×10⁵&quot;</span></code>. Si le
+coefficient est proche de 1 (à 5 % près), il est omis pour
+simplifier l’affichage (<code class="docutils literal notranslate"><span class="pre">&quot;Re</span> <span class="pre">=</span> <span class="pre">10⁶&quot;</span></code>).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.re_tick">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">re_tick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#dashboard.re_tick" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Formate un nombre de Reynolds pour les étiquettes d’axe Plotly.</p>
+<p>Variante de <a class="reference internal" href="#dashboard.re_label" title="dashboard.re_label"><code class="xref py py-func docutils literal notranslate"><span class="pre">re_label()</span></code></a> produisant un texte pur (sans le préfixe
+<code class="docutils literal notranslate"><span class="pre">&quot;Re</span> <span class="pre">=</span> <span class="pre">&quot;</span></code>), adapté aux étiquettes d’axes catégoriels des graphiques
+en barres.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>r</strong> (<em>float</em>) – Nombre de Reynolds à formater.</p>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Chaîne du type <code class="docutils literal notranslate"><span class="pre">&quot;1.0×10⁶&quot;</span></code>.</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.render_enhanced_header">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_enhanced_header</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_xfoil</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_ml</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#dashboard.render_enhanced_header" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche le bandeau d’en-tête du dashboard et ses indicateurs clés.</p>
+<p>Le bandeau principal (titre, sous-titre, mention du cours et des
+auteurs) est toujours affiché. Si des DataFrames sont fournis, quatre
+cartes statistiques supplémentaires sont rendues : nombre de profils
+analysés, nombre de points de données, nombre de Reynolds disponibles
+et taux de convergence XFoil.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Fonction de rendu pur côté Streamlit : elle ne retourne aucune
+valeur, tout l’affichage se fait par effet de bord via
+<code class="docutils literal notranslate"><span class="pre">st.markdown</span></code>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_xfoil</strong> (<em>pandas.DataFrame</em><em>, </em><em>optional</em>) – DataFrame XFoil brut, utilisé pour calculer les
+indicateurs clés. Si <code class="docutils literal notranslate"><span class="pre">None</span></code>, seul le bandeau principal est
+affiché (utilisé par exemple pour la page « Prédiction ML », qui
+ne dépend pas du dataset XFoil).</p></li>
+<li><p><strong>df_ml</strong> (<em>pandas.DataFrame</em><em>, </em><em>optional</em>) – DataFrame ML brut (actuellement non exploité pour le
+calcul des indicateurs, réservé pour extension future).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Renvoie<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rien (rendu Streamlit par effet de bord).</p>
+</dd>
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dashboard.render_sidebar">
+<span class="sig-prename descclassname"><span class="pre">dashboard.</span></span><span class="sig-name descname"><span class="pre">render_sidebar</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#dashboard.render_sidebar" title="Lien vers cette définition">¶</a></dt>
+<dd><p>Affiche la barre latérale stylisée et collecte les choix de navigation.</p>
+<p>La sidebar contient, dans l’ordre : le logo et le titre de
+l’application, le menu de navigation entre les six pages du
+dashboard, le réglage de disposition des graphiques (1 ou 2
+colonnes), et un encart de pied de page rappelant le contexte du
+projet (cours, auteurs, outils utilisés).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p><p>Un couple <code class="docutils literal notranslate"><span class="pre">(page,</span> <span class="pre">disposition)</span></code> où :</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">page</span></code> est le nom de la page sélectionnée (parmi
+<code class="docutils literal notranslate"><span class="pre">&quot;Polaires&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Performance</span> <span class="pre">ML&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Validation</span> <span class="pre">ML&quot;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&quot;Optimisation&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Dataset&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Prédiction</span> <span class="pre">ML&quot;</span></code>) ;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">disposition</span></code> vaut <code class="docutils literal notranslate"><span class="pre">&quot;2</span> <span class="pre">colonnes&quot;</span></code> ou <code class="docutils literal notranslate"><span class="pre">&quot;1</span> <span class="pre">colonne&quot;</span></code> selon
+le choix de l’utilisateur.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple(str, str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">AeroPredict</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Projet_Session-master</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="audit_dataset.html">audit_dataset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="calcul_Xfoil.html">calcul_Xfoil module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">dashboard module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_profils.html">data_profils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">main module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modele_ML.html">modele_ML module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">Projet_Session-master</a><ul>
+      <li>Previous: <a href="calcul_Xfoil.html" title="Chapitre précédent">calcul_Xfoil module</a></li>
+      <li>Next: <a href="data_profils.html" title="Chapitre suivant">data_profils module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Recherche rapide</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Melissa Flavien Vincent.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+      |
+      <a href="_sources/dashboard.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
